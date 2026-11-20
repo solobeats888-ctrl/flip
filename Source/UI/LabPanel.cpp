@@ -1,4 +1,6 @@
 #include "LabPanel.h"
+#include "../Help/I18n.h"
+using flipper::i18n::tr;
 
 namespace flipper
 {
@@ -10,7 +12,8 @@ static String u8 (const char* s) { return String::fromUTF8 (s); }
 static void setupField (TextEditor& t, const String& hint)
 {
     t.setFont (theme::font (14.0f));
-    t.setTextToShowWhenEmpty (hint, theme::cream.withAlpha (0.35f));
+    t.getProperties().set ("hint", hint);
+    t.setTextToShowWhenEmpty (tr (hint), theme::cream.withAlpha (0.35f));
     t.setIndents (8, 7);
     t.setJustification (Justification::centredLeft);
 }
@@ -21,12 +24,7 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
     setupField (search, "BUSCAR NOMBRE O TAG");
     search.onTextChange = [this] { applyFilters(); };
 
-    categoryFilter.addItem (u8 ("TODAS LAS CATEGORÍAS"), 1);
-    categoryFilter.addItemList (PresetManager::categories(), 2);
-    engineFilter.addItem ("TODOS LOS MOTORES", 1);
-    for (int e = 0; e < numEngines; ++e) engineFilter.addItem (engines()[(size_t) e].technical, e + 2);
-    characterFilter.addItem (u8 ("TODO CARÁCTER"), 1);
-    characterFilter.addItemList ({ "LIMPIO", u8 ("CÁLIDO"), "SUCIO", "ROTO" }, 2);
+    fillCombos();
     for (auto* c : { &categoryFilter, &engineFilter, &characterFilter })
     {
         c->setSelectedId (1, dontSendNotification);
@@ -41,7 +39,7 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
     copyAB.onClick = [this]
     {
         proc.copyABToOther();
-        status = proc.getABSlot() == 0 ? u8 ("A COPIADO EN B") : u8 ("B COPIADO EN A");
+        status = tr (proc.getABSlot() == 0 ? u8 ("A COPIADO EN B") : u8 ("B COPIADO EN A"));
         repaint();
     };
 
@@ -51,7 +49,6 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
 
     setupField (nameField, "NOMBRE DEL PRESET");
     setupField (tagsField, "TAGS (COMA)");
-    saveCategory.addItemList (PresetManager::categories(), 1);
     saveButton.onClick = [this] { savePreset(); };
 
     // ---------------------------------------------------------------- generador
@@ -61,7 +58,6 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
         modeButtons[(size_t) i]->onClick = [this, i] { proc.setGeneratorMode ((Gen::Mode) i); refreshGenerator(); };
         addAndMakeVisible (*modeButtons[(size_t) i]);
     }
-    styleBox.addItemList (Gen::styleNames(), 1);
     styleBox.onChange = [this] { proc.setGeneratorStyle (styleBox.getSelectedId() - 1); };
 
     setupField (seedField, "SEMILLA");
@@ -71,7 +67,7 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
         const auto seed = (uint32) seedField.getText().getLargeIntValue();
         if (seed == 0) return;
         proc.generateSound (seed);
-        status = "SEMILLA " + String (seed) + " APLICADA";
+        status = tr ("SEMILLA") + " " + String (seed) + " " + tr ("APLICADA");
         refreshGenerator();
     };
 
@@ -79,18 +75,18 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
     mutateAmount.onValueChange = [this] { proc.setMutateAmount ((float) mutateAmount.getValue()); };
 
     generate.onClick = [this] { proc.generateSound(); status = {}; refreshGenerator(); };
-    mutate.onClick   = [this] { proc.mutateSound(); status = "MUTADO"; refreshGenerator(); };
+    mutate.onClick   = [this] { proc.mutateSound(); status = tr ("MUTADO"); refreshGenerator(); };
     surprise.onClick = [this]
     {
         auto& r = Random::getSystemRandom();
         proc.setGeneratorMode ((Gen::Mode) r.nextInt (3));
         proc.setGeneratorStyle (r.nextInt (Gen::styleNames().size()));
         proc.generateSound();
-        status = "SORPRESA";
+        status = tr ("SORPRESA");
         refreshGenerator();
     };
-    undo.onClick = [this] { status = proc.undo() ? "DESHECHO" : "NADA PARA DESHACER"; refreshGenerator(); };
-    redo.onClick = [this] { status = proc.redo() ? "REHECHO" : "NADA PARA REHACER"; refreshGenerator(); };
+    undo.onClick = [this] { status = tr (proc.undo() ? "DESHECHO" : "NADA PARA DESHACER"); refreshGenerator(); };
+    redo.onClick = [this] { status = tr (proc.redo() ? "REHECHO" : "NADA PARA REHACER"); refreshGenerator(); };
 
     // ---------------------------------------------------------------- bloqueos
     for (int e = 0; e < numEngines; ++e) lockIds.add (engines()[(size_t) e].id);
@@ -120,6 +116,23 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
     addAndMakeVisible (animToggle);
     addAndMakeVisible (sfxToggle);
 
+    // idioma de todo el plugin
+    langEs.onClick = [] { i18n::setLanguage (i18n::Lang::es); };
+    langEn.onClick = [] { i18n::setLanguage (i18n::Lang::en); };
+    addAndMakeVisible (langEs);
+    addAndMakeVisible (langEn);
+
+    // claves de la ayuda al pasar el mouse
+    auto help = [] (Component& c, const char* key) { c.getProperties().set ("help", key); };
+    help (search, "ui:search"); help (categoryFilter, "ui:filter"); help (engineFilter, "ui:filter"); help (characterFilter, "ui:filter");
+    help (favOnly, "ui:favonly"); help (slotA, "ui:ab"); help (slotB, "ui:ab"); help (copyAB, "ui:copyab"); help (list, "ui:list");
+    help (nameField, "ui:save"); help (saveCategory, "ui:save"); help (tagsField, "ui:save"); help (saveButton, "ui:save");
+    for (auto& b : modeButtons) help (*b, "ui:gen_mode");
+    help (styleBox, "ui:style"); help (seedField, "ui:seed"); help (useSeed, "ui:seed"); help (mutateAmount, "ui:mutate_amt");
+    help (generate, "ui:generate"); help (mutate, "ui:mutate"); help (surprise, "ui:surprise"); help (undo, "ui:undo"); help (redo, "ui:redo");
+    for (auto& t : locks) help (*t, "ui:lock");
+    help (animToggle, "ui:anim"); help (sfxToggle, "ui:sfx"); help (langEs, "ui:lang"); help (langEn, "ui:lang");
+
     for (Component* c : std::initializer_list<Component*> {
              &search, &categoryFilter, &engineFilter, &characterFilter, &favOnly, &slotA, &slotB, &copyAB,
              &list, &nameField, &saveCategory, &tagsField, &saveButton,
@@ -127,11 +140,42 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
         addAndMakeVisible (c);
 }
 
+//============================================================================== idioma
+void LabPanel::fillCombos()
+{
+    auto refill = [] (ComboBox& box, const StringArray& items, int firstId)
+    {
+        const int sel = box.getSelectedId();
+        box.clear (dontSendNotification);
+        for (int i = 0; i < items.size(); ++i) box.addItem (tr (items[i]), firstId + i);
+        box.setSelectedId (sel != 0 ? sel : 1, dontSendNotification);
+    };
+    StringArray cats { u8 ("TODAS LAS CATEGORÍAS") }; cats.addArray (PresetManager::categories());
+    refill (categoryFilter, cats, 1);
+    StringArray engs { "TODOS LOS MOTORES" }; for (int e = 0; e < numEngines; ++e) engs.add (engines()[(size_t) e].technical);
+    refill (engineFilter, engs, 1);
+    refill (characterFilter, { u8 ("TODO CARÁCTER"), "LIMPIO", u8 ("CÁLIDO"), "SUCIO", "ROTO" }, 1);
+    refill (saveCategory, PresetManager::categories(), 1);
+    refill (styleBox, Gen::styleNames(), 1);
+}
+
+void LabPanel::languageChanged()
+{
+    fillCombos();
+    for (auto* t : { &search, &nameField, &tagsField, &seedField })
+        t->setTextToShowWhenEmpty (tr (t->getProperties()["hint"].toString()), theme::cream.withAlpha (0.35f));
+    status = {};
+    refresh();
+    repaint();
+}
+
 //============================================================================== layout
 void LabPanel::resized()
 {
     animToggle.setBounds (440, 20, 170, 28);
     sfxToggle.setBounds (440, 50, 170, 28);
+    langEs.setBounds (24, 44, 52, 30);
+    langEn.setBounds (80, 44, 52, 30);
 
     search.setBounds (20, 122, 250, 34);
     categoryFilter.setBounds (280, 122, 160, 34);
@@ -214,6 +258,7 @@ void LabPanel::paint (Graphics& g)
     theme::drawPrintedText (g, u8 ("PRESETS  ·  GENERADOR  ·  BLOQUEOS"), W * 0.5f, 74.0f, 13.0f, 0.0f,
                             theme::cream.withAlpha (0.8f), theme::black, 0.0f);
 
+    theme::drawPrintedText (g, "IDIOMA", 78.0f, 32.0f, 11.0f, 0.0f, theme::cream.withAlpha (0.8f), theme::black, 0.0f);
     sectionTitle (g, "PRESETS", 104.0f, W);
     sectionTitle (g, "GENERADOR", 594.0f, W);
     sectionTitle (g, "BLOQUEOS", 828.0f, W);
@@ -237,7 +282,7 @@ void LabPanel::paint (Graphics& g)
     theme::drawPrintedText (g, hint, W * 0.5f, 1004.0f, 13.0f, 0.0f, theme::cream.withAlpha (0.55f), theme::black, 0.0f);
 
     // estado: ultima semilla, ranura A/B, mensajes
-    String line = "SEMILLA ACTUAL " + String (proc.lastSeed()) + "   ·   EDITANDO " + (proc.getABSlot() == 0 ? "A" : "B");
+    String line = tr ("SEMILLA ACTUAL") + " " + String (proc.lastSeed()) + "   ·   " + tr ("EDITANDO") + " " + (proc.getABSlot() == 0 ? "A" : "B");
     if (status.isNotEmpty()) line << "   ·   " << status;
     theme::drawPrintedText (g, line, W * 0.5f, 782.0f, 13.0f, 0.0f, theme::mustard.withAlpha (0.9f), theme::black, 0.0f);
 
@@ -281,7 +326,7 @@ void LabPanel::paintListBoxItem (int row, Graphics& g, int width, int height, bo
     StringArray eng;
     for (int e = 0; e < numEngines; ++e) if (pr.engineOn[(size_t) e]) eng.add (engines()[(size_t) e].technical);
     String engText = eng.size() > 2 ? eng[0] + " + " + String (eng.size() - 1) : eng.joinIntoString (" + ");
-    if (pr.tags.size() > 0) engText << "  #" << pr.tags.joinIntoString (" #").toUpperCase();
+    for (auto& tg : pr.tags) engText << "  #" << tr (tg.toUpperCase());
     const float eh = theme::fitHeight (engText, 200.0f, 11.0f);
     theme::drawPrintedText (g, engText, 350.0f + theme::textWidth (engText, eh) * 0.5f, cy, eh, 0.0f,
                             theme::cream.withAlpha (0.6f), theme::black, 0.0f, false);
@@ -308,7 +353,7 @@ void LabPanel::listBoxItemClicked (int row, const MouseEvent& e)
     // un click carga el preset (escucharlo); DESHACER vuelve al sonido anterior
     proc.applyWithHistory (pr.values);
     loadedName = pr.name; loadedFactory = pr.factory;
-    status = "CARGADO: " + pr.name.toUpperCase();
+    status = tr ("CARGADO") + ": " + pr.name.toUpperCase();
     list.repaint();
     repaint();
 }
@@ -345,11 +390,11 @@ void LabPanel::applyFilters()
 void LabPanel::savePreset()
 {
     auto name = nameField.getText().trim();
-    if (name.isEmpty()) { status = "PONELE UN NOMBRE"; repaint(); nameField.grabKeyboardFocus(); return; }
+    if (name.isEmpty()) { status = tr ("PONELE UN NOMBRE"); repaint(); nameField.grabKeyboardFocus(); return; }
 
-    const auto file = proc.presets.save (name, saveCategory.getText(), tagsField.getText(), false,
+    const auto file = proc.presets.save (name, PresetManager::categories()[jmax (0, saveCategory.getSelectedId() - 1)], tagsField.getText(), false,
                                          Gen::capture (proc.state));
-    status = file.existsAsFile() ? "GUARDADO: " + name.toUpperCase() : "NO SE PUDO GUARDAR";
+    status = file.existsAsFile() ? tr ("GUARDADO") + ": " + name.toUpperCase() : tr ("NO SE PUDO GUARDAR");
     nameField.clear();
     tagsField.clear();
     proc.presets.rescan();
@@ -372,6 +417,8 @@ void LabPanel::refreshGenerator()
         locks[(size_t) i]->setToggleState (s.locks.count (lockIds[i]) > 0, dontSendNotification);
     animToggle.setToggleState ((bool) proc.state.state.getProperty (ids::animOn, true), dontSendNotification);
     sfxToggle.setToggleState ((bool) proc.state.state.getProperty (ids::sfxOn, false), dontSendNotification);
+    langEs.setToggleState (! i18n::english(), dontSendNotification);
+    langEn.setToggleState (i18n::english(), dontSendNotification);
     slotA.setToggleState (proc.getABSlot() == 0, dontSendNotification);
     slotB.setToggleState (proc.getABSlot() == 1, dontSendNotification);
     repaint();
@@ -380,7 +427,7 @@ void LabPanel::refreshGenerator()
 void LabPanel::refresh()
 {
     proc.presets.rescan();
-    saveCategory.setText (PresetManager::categoryFor (Gen::capture (proc.state)), dontSendNotification);
+    saveCategory.setSelectedId (PresetManager::categories().indexOf (PresetManager::categoryFor (Gen::capture (proc.state))) + 1, dontSendNotification);
     applyFilters();
     refreshGenerator();
 }

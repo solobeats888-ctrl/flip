@@ -7,6 +7,7 @@
 #include "UI/LabPanel.h"
 #include "UI/DesignPanel.h"
 #include "Anim/AnimationLayer.h"
+#include "Help/HelpUI.h"
 
 /** Tablero de 1024 x 1536 (espacio de la imagen aprobada); el editor lo escala. */
 class FlipperBoard : public juce::Component
@@ -25,7 +26,7 @@ private:
     bool cacheValid = false;
 };
 
-class FlipperEditor : public juce::AudioProcessorEditor, private juce::Timer
+class FlipperEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::ChangeListener
 {
 public:
     explicit FlipperEditor (FlipperProcessor&);
@@ -36,10 +37,15 @@ public:
     // usados por la herramienta de captura
     void selectEngine (int engine);
     void setMode (flipper::UiMode);
+    void startTour();
+    void tourNext() { tour.next(); }
+    juce::Rectangle<int> resolveTarget (const juce::String&);
+    void selectEngineForTest (int e) { selectEngine (e); }
     flipper::anim::AnimationLayer& getAnimationLayer() { return animLayer; }
 
 private:
     void timerCallback() override;
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;   // cambio de idioma
     void mouseDown (const juce::MouseEvent&) override; // foto para DESHACER antes de tocar un control
     void generate();
     void showVariations();
@@ -62,6 +68,9 @@ private:
     std::array<std::unique_ptr<flipper::LevelPill>, flipper::numEngines> pills;
     std::array<std::unique_ptr<flipper::SpriteKnob>, flipper::numMacros> macroKnobs;
     flipper::ArcadeButton generateButton, variationsButton, favoriteButton;
+    flipper::HelpButton helpButton;
+    flipper::TourOverlay tour;
+    std::unique_ptr<flipper::HelpTooltipWindow> tooltipWindow;
 
     using SliderAtt = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAtt = juce::AudioProcessorValueTreeState::ButtonAttachment;

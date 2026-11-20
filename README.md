@@ -87,6 +87,15 @@ Presets: 40 de fábrica (4 o 5 por motor + 3 híbridos), sonidos originales que 
 de los clásicos de cada máquina. Se marcan con F en LAB y no se pueden borrar; también pueden ser
 favoritos. El generador tiene reglas para los 9 motores.
 
+Ayuda e idioma (0.9.1):
+- Ayuda al pasar el mouse: cada perilla, fader, botón, pin, cable y personaje explica qué hace,
+  con un consejo de uso (391 controles, en castellano e inglés).
+- Botón ? (arriba a la derecha): recorrido guiado de la pantalla donde estés: JUGAR, LAB y la
+  pantalla DISEÑO de cada uno de los 9 motores (58 pasos). Ilumina cada zona y la explica; se maneja
+  con ANTERIOR / SIGUIENTE / SALIR o las flechas del teclado. El de JUGAR se abre solo la primera vez.
+- Idioma: selector ES / EN en LAB; traduce toda la interfaz, la ayuda y los recorridos. La primera
+  vez usa el idioma del sistema. Se guarda por usuario (no por proyecto).
+
 Por defecto arranca solo KROKO encendido (antes eran los 9 a la vez y sonaba todo junto).
 
 Todavía NO (no se muestra como si funcionara):

@@ -1,6 +1,8 @@
 #include "DesignWidgets.h"
 #include "../Core/Parameters.h"
 #include "../DSP/Engines.h"
+#include "../Help/I18n.h"
+#include "../Help/Help.h"
 
 namespace flipper
 {
@@ -188,6 +190,7 @@ Component& EnginePage::place (const String& paramId, const String& label, Rectan
         comp = std::move (k);
     }
     comp->setBounds (r);
+    comp->getProperties().set ("help", paramId);
     comp->addMouseListener (&history, false);
     addAndMakeVisible (*comp);
     owned.push_back (std::move (comp));
@@ -340,7 +343,7 @@ public:
         left.addTriangle (r.getX() + 8, r.getY() + 17, r.getX() + 16, r.getY() + 11, r.getX() + 16, r.getY() + 23);
         right.addTriangle (r.getRight() - 8, r.getY() + 17, r.getRight() - 16, r.getY() + 11, r.getRight() - 16, r.getY() + 23);
         g.setColour (ink); g.fillPath (left); g.fillPath (right);
-        theme::drawPrintedText (g, "ALGORITMO " + String (alg).paddedLeft ('0', 2), r.getCentreX(), r.getY() + 17, 14.0f, 0.0f, ink, ink, 0.0f, false);
+        theme::drawPrintedText (g, i18n::tr ("ALGORITMO") + " " + String (alg).paddedLeft ('0', 2), r.getCentreX(), r.getY() + 17, 14.0f, 0.0f, ink, ink, 0.0f, false);
 
         // diagrama: portadores abajo, cada modulador arriba de su destino
         const auto& a = dsp::DX7Engine::algorithms()[(size_t) alg - 1];
@@ -381,7 +384,7 @@ public:
                 loop.lineTo (b.getRight() + 7, b.getY() - 6); loop.lineTo (b.getCentreX(), b.getY() - 6); loop.lineTo (b.getCentreX(), b.getY());
                 g.strokePath (loop, PathStrokeType (1.3f));
             }
-            const String t = String (o + 1) + (((a.carriers >> o) & 1) ? "P" : "");
+            const String t = String (o + 1) + (((a.carriers >> o) & 1) ? (i18n::english() ? "C" : "P") : "");
             theme::drawPrintedText (g, t, b.getCentreX(), b.getCentreY() + 0.5f, 11.0f, 0.0f, sel ? Colour (0xffb9cc78) : ink, ink, 0.0f, false);
         }
         ignoreUnused (id);
@@ -402,6 +405,7 @@ public:
         setSize (632, 1064);
         display = std::make_unique<AlgorithmDisplay> (*s.getParameter ("dx7_algorithm"), id);
         display->setBounds (48, 116, 330, 220);
+        display->getProperties().set ("help", "dx7_algorithm");
         display->addMouseListener (&history, false);
         display->onSelectOp = [this] (int o) { select (o); };
         display->onChange = [this] { repaint(); };
@@ -418,6 +422,7 @@ public:
             b->onClick = [this, o] { select (o); };
             b->setAlpha (0.0f);  // el boton de membrana se dibuja en paint
             b->setBounds (48 + o * 90, 362, 84, 40);
+            b->getProperties().set ("help", "ui:dx_op");
             b->setMouseCursor (MouseCursor::PointingHandCursor);
             addAndMakeVisible (*b);
             opButtons.push_back (std::move (b));
@@ -465,10 +470,10 @@ public:
                                                sel ? id.accent.darker (0.3f) : Colour (0xff22331b), r.getX(), r.getBottom(), false));
             g.fillRect (r);
             g.setColour (id.accent.withAlpha (sel ? 1.0f : 0.4f)); g.drawRect (r, 1.0f);
-            const String t = "OP " + String (o + 1) + (carrier ? "  (P)" : "  (M)");
+            const String t = "OP " + String (o + 1) + (carrier ? (i18n::english() ? "  (C)" : "  (P)") : "  (M)");
             theme::drawPrintedText (g, t, r.getCentreX(), r.getCentreY(), 13.0f, 0.0f, sel ? Colour (0xff10180a) : theme::cream, theme::black, 0.0f, false);
         }
-        theme::drawPrintedText (g, "EDITANDO OPERADOR " + String (selected + 1) + u8 (" · P = PORTADOR (SUENA) · M = MODULADOR (DA BRILLO)"),
+        theme::drawPrintedText (g, i18n::tr ("EDITANDO OPERADOR") + " " + String (selected + 1) + i18n::tr (u8 (" · P = PORTADOR (SUENA) · M = MODULADOR (DA BRILLO)")),
                                 316, 418, 10.5f, 0.0f, theme::cream.withAlpha (0.7f), theme::black, 0.0f);
     }
 
@@ -538,6 +543,7 @@ public:
             b->setAlpha (0.0f);
             b->onClick = [this, L] { select (L); };
             b->setBounds (48 + L * 274, 112, 262, 38);
+            b->getProperties().set ("help", "ui:cs_layer");
             b->setMouseCursor (MouseCursor::PointingHandCursor);
             addAndMakeVisible (*b);
             layerButtons.push_back (std::move (b));
@@ -563,6 +569,7 @@ public:
         row (586, { { "PORTAMENTO", { { "cs80_porta", "TIEMPO" }, { "cs80_gliss", "GLISSANDO" } } } });
         ribbon = std::make_unique<Ribbon> (*s.getParameter ("cs80_ribbon"), id);
         ribbon->setBounds (48, 740, 536, 80);
+        ribbon->getProperties().set ("help", "cs80_ribbon");
         ribbon->addMouseListener (&history, false);
         addAndMakeVisible (*ribbon);
         select (0);
@@ -685,7 +692,7 @@ public:
         {
             const String n ("arp2600_c" + String (c + 1) + "_");
             const int y = 650 + c * 84;
-            place (n + "src", "CABLE " + String (c + 1) + ": ORIGEN", { 186, y, 120, 58 });
+            place (n + "src", "CABLE " + String (c + 1), { 186, y, 120, 58 });
             place (n + "dst", "DESTINO", { 316, y, 120, 58 });
             place (n + "amt", "CANTIDAD", { 438, y - 6, 40, 84 });
         }
@@ -695,7 +702,7 @@ private:
 };
 
 //============================================================================== VCS3: matriz de pines y joystick
-class PinMatrix : public Component
+class PinMatrix : public Component, public help::Provider
 {
 public:
     explicit PinMatrix (AudioProcessorValueTreeState& s) : state (s)
@@ -708,6 +715,13 @@ public:
                 atts.back()->sendInitialUpdate();
             }
         setMouseCursor (MouseCursor::PointingHandCursor);
+    }
+
+    String helpKeyAt (Point<int> p) override
+    {
+        for (int r = 0; r < 8; ++r) for (int c = 0; c < 7; ++c)
+            if (cell (r, c).contains (p.toFloat())) return "pin:" + String (r) + ":" + String (c);
+        return {};
     }
 
     Rectangle<float> cell (int r, int c) const
@@ -829,6 +843,7 @@ public:
         bands.push_back ({ "CONTROL", { 436, 630, 152, 370 } });
         joy = std::make_unique<Joystick> (s, id);
         joy->setBounds (442, 700, 140, 160);
+        joy->getProperties().set ("help", "ui:joystick");
         joy->addMouseListener (&history, false);
         addAndMakeVisible (*joy);
     }

@@ -108,5 +108,8 @@ public:
     void positionComboBoxText (juce::ComboBox&, juce::Label&) override;
     void fillTextEditorBackground (juce::Graphics&, int width, int height, juce::TextEditor&) override;
     void drawTextEditorOutline (juce::Graphics&, int width, int height, juce::TextEditor&) override;
+    juce::Rectangle<int> getTooltipBounds (const juce::String&, juce::Point<int> screenPos, juce::Rectangle<int> parentArea) override;
+    void drawTooltip (juce::Graphics&, const juce::String& text, int width, int height) override;
+    static juce::TextLayout tooltipLayout (const juce::String&, float width);
 };
 }

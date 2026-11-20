@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.22)
 set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Build architectures for macOS")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum macOS version")
 
-project(Flipper VERSION 0.9.0 LANGUAGES C CXX)
+project(Flipper VERSION 0.9.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -105,7 +105,11 @@ set(FLIPPER_SOURCES
     Source/UI/LabPanel.cpp
     Source/UI/DesignPanel.cpp
     Source/UI/VintageControls.cpp
-    Source/UI/DesignWidgets.cpp)
+    Source/UI/DesignWidgets.cpp
+    Source/Help/I18n.cpp
+    Source/Help/Translations.cpp
+    Source/Help/Help.cpp
+    Source/Help/HelpUI.cpp)
 
 # ---------------------------------------------------------------- plugin
 set(FLIPPER_FORMATS VST3 Standalone)

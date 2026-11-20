@@ -110,7 +110,7 @@ std::vector<PresetManager::Preset> buildFactoryPresets (const AudioProcessorValu
         p.category = PresetManager::categoryFor (p.values);
         for (int e = 0; e < numEngines; ++e) p.engineOn[(size_t) e] = v[ids::engineOn (e)] > 0.5f;
         p.character = v[ids::character];
-        p.tags.add (String::fromUTF8 ("fábrica"));
+        p.tags.add (String::fromUTF8 ("FÁBRICA"));
         out.push_back (std::move (p));
     }
     return out;

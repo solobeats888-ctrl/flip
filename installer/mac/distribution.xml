@@ -14,6 +14,6 @@
     <choice id="au" title="FLIPPER Audio Unit" description="Para Logic, GarageBand y otros DAW que usan AU.">
         <pkg-ref id="com.viszeversza.flipper.au"/>
     </choice>
-    <pkg-ref id="com.viszeversza.flipper.vst3" version="0.9.0" onConclusion="none">FLIPPER-VST3.pkg</pkg-ref>
-    <pkg-ref id="com.viszeversza.flipper.au" version="0.9.0" onConclusion="none">FLIPPER-AU.pkg</pkg-ref>
+    <pkg-ref id="com.viszeversza.flipper.vst3" version="0.9.1" onConclusion="none">FLIPPER-VST3.pkg</pkg-ref>
+    <pkg-ref id="com.viszeversza.flipper.au" version="0.9.1" onConclusion="none">FLIPPER-AU.pkg</pkg-ref>
 </installer-gui-script>

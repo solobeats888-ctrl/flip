@@ -6,8 +6,8 @@
 [Setup]
 AppId={{8C2E4F71-3A9D-4B6E-A5C1-F11990000001}
 AppName=FLIPPER
-AppVersion=0.9.0
-AppVerName=FLIPPER 0.9.0 (Viszeversza)
+AppVersion=0.9.1
+AppVerName=FLIPPER 0.9.1 (Viszeversza)
 AppPublisher=Viszeversza
 DefaultDirName={commoncf64}\VST3
 DisableDirPage=yes

@@ -1,5 +1,6 @@
 #include "Theme.h"
 #include <BinaryData.h>
+#include "../Help/I18n.h"
 
 namespace flipper::theme
 {
@@ -38,8 +39,9 @@ juce::Image image (const char* name)
     return {};
 }
 
-float textWidth (const juce::String& text, float height)
+float textWidth (const juce::String& textIn, float height)
 {
+    const juce::String text = i18n::tr (textIn);
     return juce::GlyphArrangement::getStringWidth (font (height), text) * (1.0f + 0.06f);
 }
 
@@ -49,10 +51,15 @@ float fitHeight (const juce::String& text, float maxWidth, float maxHeight)
     return w <= maxWidth ? maxHeight : maxHeight * maxWidth / w;
 }
 
-void drawPrintedText (juce::Graphics& g, const juce::String& text, float cx, float cy,
+void drawPrintedText (juce::Graphics& g, const juce::String& textIn, float cx, float cy,
                       float height, float angle, juce::Colour colour,
                       juce::Colour wearColour, float wear, bool shadow)
 {
+    // todo el texto de la interfaz pasa por aca: se traduce al idioma elegido
+    const juce::String text = i18n::tr (textIn);
+   #if FLIPPER_SNAPSHOT
+    if (auto* dump = getenv ("FLIPPER_DUMP_TEXT")) juce::File (dump).appendText (textIn + "\n", false, false, "\n");
+   #endif
     juce::Graphics::ScopedSaveState save (g);
     g.addTransform (juce::AffineTransform::rotation (juce::degreesToRadians (angle), cx, cy));
 

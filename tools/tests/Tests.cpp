@@ -4,6 +4,8 @@
 #include "Anim/AnimationLayer.h"
 #include "PluginEditor.h"
 #include "Core/FactoryPresets.h"
+#include "Help/Help.h"
+#include "Help/I18n.h"
 
 using namespace flipper;
 using Gen = SoundGenerator;
@@ -365,6 +367,43 @@ int main()
         }
         std::printf ("cuadro completo, 9 animaciones: promedio %.2f ms, peor %.2f ms\n", total / frames, worst);
         CHECK (total / frames < 16.0);
+    }
+
+    // ayuda: cada parametro tiene texto en los dos idiomas; cada paso de recorrido apunta a algo que existe
+    {
+        FlipperProcessor hp;
+        int missing = 0, total = 0;
+        for (auto lang : { i18n::Lang::es, i18n::Lang::en })
+        {
+            i18n::setLanguage (lang);
+            for (auto* prm : hp.getParameters())
+                if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm))
+                {
+                    ++total;
+                    const auto tip = help::tooltip (rp->getParameterID());
+                    if (! tip.contains ("\n") || tip.length() < 12) { ++missing; if (! rp->getParameterID().contains ("pin_")) std::printf ("  sin ayuda: %s\n", rp->getParameterID().toRawUTF8()); }
+                }
+        }
+        std::printf ("ayuda de parametros: %d de %d con texto\n", total - missing, total);
+        CHECK (missing == 0);
+
+        std::unique_ptr<FlipperEditor> ed (static_cast<FlipperEditor*> (hp.createEditor()));
+        int bad = 0, steps = 0;
+        juce::StringArray screens { "play", "lab" };
+        for (int e = 0; e < numEngines; ++e) screens.add ("design" + juce::String (e));
+        for (auto& sc : screens)
+        {
+            if (sc.startsWith ("design")) ed->selectEngineForTest (sc.getTrailingIntValue());
+            for (auto& st : help::tour (sc))
+            {
+                ++steps;
+                if (ed->resolveTarget (st.target).isEmpty()) { ++bad; std::printf ("  paso sin destino: %s %s\n", sc.toRawUTF8(), st.target.toRawUTF8()); }
+                if (juce::String::fromUTF8 (st.textEn).isEmpty() || juce::String::fromUTF8 (st.textEs).isEmpty()) ++bad;
+            }
+        }
+        std::printf ("recorridos: %d pantallas, %d pasos\n", screens.size(), steps);
+        CHECK (bad == 0 && steps > 50);
+        i18n::setLanguage (i18n::Lang::es);
     }
 
     tmp.deleteRecursively();

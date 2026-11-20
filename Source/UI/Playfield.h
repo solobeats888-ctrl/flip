@@ -2,6 +2,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../Core/Parameters.h"
 #include <functional>
+#include "../Help/Help.h"
 
 namespace flipper
 {
@@ -13,7 +14,7 @@ namespace flipper
       - estados: seleccionado (placa iluminada), apagado (personaje en sombra), hover, actividad
     Solo recibe clicks dentro de las elipses; el resto pasa a los controles de abajo.
 */
-class Playfield : public juce::Component
+class Playfield : public juce::Component, public help::Provider
 {
 public:
     struct EngineState { bool on = true; float level = 0.7f; float activity = 0.0f; };
@@ -28,6 +29,7 @@ public:
 
     void paint (juce::Graphics&) override;
     bool hitTest (int x, int y) override;
+    juce::String helpKeyAt (juce::Point<int> p) override { const int e = engineAt (p.toFloat()); return e >= 0 ? "ui:character_" + juce::String (e) : juce::String(); }
     void mouseMove (const juce::MouseEvent&) override;
     void mouseExit (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;

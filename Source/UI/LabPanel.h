@@ -16,6 +16,7 @@ public:
 
     explicit LabPanel (FlipperProcessor&);
     void refresh();            // al mostrarse o cuando cambian presets / ajustes
+    void languageChanged();
     void paint (juce::Graphics&) override;
     void resized() override;
 
@@ -28,6 +29,7 @@ private:
     void listBoxItemClicked (int row, const juce::MouseEvent&) override;
 
     void applyFilters();
+    void fillCombos();
     void refreshGenerator();
     void savePreset();
 
@@ -48,6 +50,7 @@ private:
               undo { "DESHACER" }, redo { "REHACER" };
 
     LabToggle animToggle { "ANIMACIONES" }, sfxToggle { "SONIDOS DEL TABLERO" };
+    LabButton langEs { "ES" }, langEn { "EN" };
     std::vector<std::unique_ptr<LabToggle>> locks;
     juce::StringArray lockIds;
 

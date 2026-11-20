@@ -4,6 +4,8 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "Help/I18n.h"
+#include "Help/Help.h"
 
 int main (int argc, char** argv)
 {
@@ -14,9 +16,40 @@ int main (int argc, char** argv)
     const int engine       = argc > 3 ? juce::String (argv[3]).getIntValue() : 8;
     const int mode         = argc > 4 ? juce::String (argv[4]).getIntValue() : 0;
     const juce::String off = argc > 5 ? argv[5] : "";
+    const bool tourMode = mode >= 6 && mode <= 8;
 
+    if (auto* lang = getenv ("FLIPPER_LANG")) flipper::i18n::setLanguage (juce::String (lang) == "en" ? flipper::i18n::Lang::en : flipper::i18n::Lang::es);
+    if (mode == 10) // hoja de ayudas al pasar el mouse
+    {
+        const juce::StringArray keys { "macro_brightness", "ui:character_5", "dx7_op2_coarse", "pin:2:5", "minimoog_contour", "juno_chorus", "arp2600_c1_amt", "ui:generate" };
+        flipper::FlipperLookAndFeel lf;
+        juce::Image sheet (juce::Image::RGB, 640, 4 * 150, true);
+        juce::Graphics g (sheet);
+        g.fillAll (juce::Colour (0xff3a2a20));
+        for (int i = 0; i < keys.size(); ++i)
+        {
+            const auto text = flipper::help::tooltip (keys[i]);
+            auto r = lf.getTooltipBounds (text, { 0, 0 }, { 0, 0, 2000, 2000 });
+            juce::Graphics::ScopedSaveState ss (g);
+            g.setOrigin ((i % 2) * 320 + 8, (i / 2) * 150 + 8);
+            lf.drawTooltip (g, text, r.getWidth(), r.getHeight());
+        }
+        juce::File f = juce::File::getCurrentWorkingDirectory().getChildFile (out);
+        f.deleteFile(); juce::FileOutputStream os (f); juce::PNGImageFormat().writeImageToStream (sheet, os);
+        std::printf ("OK %s\n", f.getFullPathName().toRawUTF8());
+        return 0;
+    }
     FlipperProcessor proc;
-    for (auto& token : juce::StringArray::fromTokens (off, ",", ""))
+    if (mode == 9) // lista de todas las opciones de los parametros (para el diccionario)
+    {
+        juce::StringArray all;
+        for (auto* p : proc.getParameters())
+            if (auto* c = dynamic_cast<juce::AudioParameterChoice*> (p)) all.addArray (c->choices);
+        all.removeDuplicates (false);
+        juce::File (out).replaceWithText (all.joinIntoString ("\n"));
+        return 0;
+    }
+    for (auto& token : juce::StringArray::fromTokens (tourMode ? juce::String() : off, ",", ""))
         if (token.isNotEmpty())
             if (auto* p = proc.state.getParameter (flipper::ids::engineOn (token.getIntValue())))
                 p->setValueNotifyingHost (0.0f);
@@ -122,6 +155,7 @@ int main (int argc, char** argv)
     std::unique_ptr<FlipperEditor> editor (static_cast<FlipperEditor*> (proc.createEditor()));
     editor->selectEngine (engine);
     editor->setMode ((flipper::UiMode) (mode >= 3 ? 0 : mode));
+    if (mode == 2 || mode == 7) editor->setMode (flipper::UiMode::lab);
     editor->setSize (width, juce::roundToInt (width * 1.5));
 
 
@@ -156,6 +190,13 @@ int main (int argc, char** argv)
         std::printf ("OK %s\n", f.getFullPathName().toRawUTF8());
         editor = nullptr;
         return 0;
+    }
+
+    if (mode >= 6 && mode <= 8) // un paso de un recorrido guiado (paso = argumento 5)
+    {
+        editor->setMode ((flipper::UiMode) (mode == 6 ? 0 : (mode == 7 ? 2 : 1)));
+        editor->startTour();
+        for (int i = 0; i < off.getIntValue(); ++i) editor->tourNext();
     }
 
     auto img = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.0f);

@@ -73,6 +73,12 @@ public:
     /** Un control suelto en un rectangulo. */
     juce::Component& place (const juce::String& paramId, const juce::String& label, juce::Rectangle<int>, juce::Colour cap = {});
     void paint (juce::Graphics&) override;
+    /** Zona de una banda por su titulo (para los recorridos guiados). */
+    juce::Rectangle<int> findBand (const juce::String& title) const
+    {
+        for (auto& b : bands) if (b.title == title) return b.area.toNearestInt().expanded (4);
+        return {};
+    }
 
     const int engine;
     const Identity& id;

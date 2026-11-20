@@ -6,5 +6,5 @@
     <domains enable_localSystem="true"/>
     <choices-outline><line choice="uninstall"/></choices-outline>
     <choice id="uninstall" title="Desinstalar FLIPPER"><pkg-ref id="com.viszeversza.flipper.uninstall"/></choice>
-    <pkg-ref id="com.viszeversza.flipper.uninstall" version="0.9.0" onConclusion="none">FLIPPER-Uninstall.pkg</pkg-ref>
+    <pkg-ref id="com.viszeversza.flipper.uninstall" version="0.9.1" onConclusion="none">FLIPPER-Uninstall.pkg</pkg-ref>
 </installer-gui-script>

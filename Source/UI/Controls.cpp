@@ -351,6 +351,35 @@ void FlipperLookAndFeel::drawTextEditorOutline (Graphics& g, int width, int heig
     g.drawRoundedRectangle (Rectangle<float> (0, 0, (float) width, (float) height).reduced (1.5f), 4.0f, 1.3f);
 }
 
+TextLayout FlipperLookAndFeel::tooltipLayout (const String& text, float width)
+{
+    AttributedString s;
+    s.append (text.upToFirstOccurrenceOf ("\n", false, false) + "\n", theme::font (13.0f), theme::mustardHi);
+    s.append (text.fromFirstOccurrenceOf ("\n", false, false), theme::font (10.5f), theme::cream);
+    s.setLineSpacing (2.0f);
+    TextLayout tl;
+    tl.createLayout (s, width);
+    return tl;
+}
+
+Rectangle<int> FlipperLookAndFeel::getTooltipBounds (const String& text, Point<int> pos, Rectangle<int> area)
+{
+    const auto tl = tooltipLayout (text, 250.0f);
+    const int w = (int) std::ceil (jmin (250.0f, tl.getWidth())) + 26, h = (int) std::ceil (tl.getHeight()) + 20;
+    return Rectangle<int> (pos.x > area.getCentreX() ? pos.x - (w + 12) : pos.x + 18,
+                           pos.y > area.getCentreY() ? pos.y - (h + 8) : pos.y + 20, w, h).constrainedWithin (area);
+}
+
+void FlipperLookAndFeel::drawTooltip (Graphics& g, const String& text, int w, int h)
+{
+    auto r = Rectangle<float> (0, 0, (float) w, (float) h);
+    g.setGradientFill (ColourGradient (Colour (0xf52a1f17), 0, 0, Colour (0xf5100b08), 0, (float) h, false));
+    g.fillRoundedRectangle (r, 6.0f);
+    g.setColour (theme::gold);
+    g.drawRoundedRectangle (r.reduced (1.0f), 6.0f, 1.5f);
+    tooltipLayout (text, 250.0f).draw (g, r.reduced (13.0f, 10.0f));
+}
+
 FlipperLookAndFeel::FlipperLookAndFeel()
 {
     setColour (ComboBox::textColourId, theme::cream);

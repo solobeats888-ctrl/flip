@@ -1,6 +1,8 @@
 #include "PluginEditor.h"
 #include "Core/SoundGenerator.h"
 #include "Core/PresetManager.h"
+#include "Help/I18n.h"
+#include "Help/Help.h"
 
 using namespace juce;
 using namespace flipper;
@@ -104,6 +106,8 @@ FlipperEditor::FlipperEditor (FlipperProcessor& p)
         modeButtons[(size_t) i] = std::make_unique<ModeButton> (modeNames[i], ledC[i], ledR[i], textA[i]);
         modeButtons[(size_t) i]->setBounds (modeBounds[i]);
         modeButtons[(size_t) i]->onClick = [this, i] { setMode ((UiMode) i); };
+        static const char* modeHelp[] = { "ui:mode_play", "ui:mode_design", "ui:mode_lab" };
+        modeButtons[(size_t) i]->getProperties().set ("help", modeHelp[i]);
         board.addAndMakeVisible (*modeButtons[(size_t) i]);
     }
 
@@ -113,12 +117,13 @@ FlipperEditor::FlipperEditor (FlipperProcessor& p)
         const float y = engines()[(size_t) e].mixRowY;
         leds[(size_t) e] = std::make_unique<EngineLed>();
         leds[(size_t) e]->setBounds (855 - 16, (int) y - 16, 32, 32);
-        leds[(size_t) e]->setTooltip ("Activar / desactivar");
+        leds[(size_t) e]->getProperties().set ("help", ids::engineOn (e));
         board.addAndMakeVisible (*leds[(size_t) e]);
         buttonAtts.push_back (std::make_unique<ButtonAtt> (state, ids::engineOn (e), *leds[(size_t) e]));
 
         pills[(size_t) e] = std::make_unique<LevelPill>();
         pills[(size_t) e]->setBounds (949, (int) y - 13, 47, 26);
+        pills[(size_t) e]->getProperties().set ("help", ids::engineLevel (e));
         board.addAndMakeVisible (*pills[(size_t) e]);
         sliderAtts.push_back (std::make_unique<SliderAtt> (state, ids::engineLevel (e), *pills[(size_t) e]));
         pills[(size_t) e]->setDoubleClickReturnValue (true, 0.7);
@@ -132,6 +137,7 @@ FlipperEditor::FlipperEditor (FlipperProcessor& p)
     characterPanel.setBounds (CharacterPanel::boardBounds());
     sliderAtts.push_back (std::make_unique<SliderAtt> (state, ids::character, characterPanel.knob));
     characterPanel.knob.setDoubleClickReturnValue (true, 0.6);
+    characterPanel.knob.getProperties().set ("help", ids::character);
 
     // macros
     for (int m = 0; m < numMacros; ++m)
@@ -141,6 +147,7 @@ FlipperEditor::FlipperEditor (FlipperProcessor& p)
         macroKnobs[(size_t) m] = std::make_unique<SpriteKnob> (res.toRawUTF8(), 27.0f, 33.5f, String::fromUTF8 (info.label));
         macroKnobs[(size_t) m]->setBounds ((int) info.x - 48, (int) macroY - 44, 96, 118);
         macroKnobs[(size_t) m]->centre = { 48.0f, 44.0f };
+        macroKnobs[(size_t) m]->getProperties().set ("help", ids::macro (m));
         board.addAndMakeVisible (*macroKnobs[(size_t) m]);
         sliderAtts.push_back (std::make_unique<SliderAtt> (state, ids::macro (m), *macroKnobs[(size_t) m]));
         macroKnobs[(size_t) m]->setDoubleClickReturnValue (true, 0.5);
@@ -153,8 +160,22 @@ FlipperEditor::FlipperEditor (FlipperProcessor& p)
     generateButton.onClick   = [this] { generate(); };
     variationsButton.onClick = [this] { showVariations(); };
     favoriteButton.onClick   = [this] { saveFavorite(); };
+    generateButton.getProperties().set ("help", "ui:generate");
+    variationsButton.getProperties().set ("help", "ui:variations");
+    favoriteButton.getProperties().set ("help", "ui:favorite");
     for (auto* b : { &generateButton, &variationsButton, &favoriteButton })
         board.addAndMakeVisible (*b);
+
+    // ayuda: boton ?, recorrido guiado y ventana de ayuda al pasar el mouse
+    helpButton.setBounds (948, 14, 64, 64);
+    helpButton.onClick = [this] { startTour(); };
+    board.addAndMakeVisible (helpButton);
+    board.addChildComponent (tour);
+    tour.setBounds (0, 0, boardW, boardH);
+    tour.resolve = [this] (const String& t) { return resolveTarget (t); };
+    tooltipWindow = std::make_unique<HelpTooltipWindow> (this);
+    tooltipWindow->setLookAndFeel (&lnf);
+    i18n::changes().addChangeListener (this);
 
     // pantalla DISENO (controles del motor elegido)
     board.addChildComponent (designPanel);
@@ -182,10 +203,22 @@ FlipperEditor::FlipperEditor (FlipperProcessor& p)
     setSize (w, roundToInt (w * (double) boardH / boardW));
 
     startTimerHz (30);
+
+   #if ! FLIPPER_SNAPSHOT
+    // la primera vez que se abre el plugin, el recorrido de JUGAR arranca solo
+    if (! i18n::tutorialSeen())
+    {
+        i18n::setTutorialSeen (true);
+        SafePointer<FlipperEditor> safe (this);
+        Timer::callAfterDelay (700, [safe] { if (safe != nullptr) safe->startTour(); });
+    }
+   #endif
 }
 
 FlipperEditor::~FlipperEditor()
 {
+    i18n::changes().removeChangeListener (this);
+    if (tooltipWindow) tooltipWindow->setLookAndFeel (nullptr);
     stopTimer();
     setLookAndFeel (nullptr);
 }
@@ -215,6 +248,34 @@ void FlipperEditor::setMode (UiMode m)
     designPanel.setVisible (m == UiMode::design);
     labPanel.setVisible (m == UiMode::lab);
     if (m == UiMode::lab) labPanel.refresh();
+}
+
+void FlipperEditor::changeListenerCallback (ChangeBroadcaster*)
+{
+    board.invalidateCache();
+    labPanel.languageChanged();
+    board.repaint();
+}
+
+Rectangle<int> FlipperEditor::resolveTarget (const String& t)
+{
+    if (t.startsWith ("rect:"))
+    {
+        const auto v = StringArray::fromTokens (t.substring (5), ",", "");
+        return { v[0].getIntValue(), v[1].getIntValue(), v[2].getIntValue(), v[3].getIntValue() };
+    }
+    if (t.startsWith ("band:"))
+        return designPanel.bandRect (t.substring (5)) + designPanel.getPosition();
+    return {};
+}
+
+void FlipperEditor::startTour()
+{
+    const auto mode = (UiMode) (int) state.state.getProperty (ids::uiMode, 0);
+    const String screen = mode == UiMode::play ? String ("play") : mode == UiMode::lab ? String ("lab")
+                                                                  : "design" + String (designPanel.getEngine());
+    tour.start (help::tour (screen));
+    tour.grabKeyboardFocus();
 }
 
 void FlipperEditor::mouseDown (const MouseEvent&)
@@ -279,9 +340,9 @@ void FlipperEditor::showVariations()
 
     PopupMenu menu;
     menu.setLookAndFeel (&lnf);
-    menu.addSectionHeader ("VARIACIONES");
+    menu.addSectionHeader (i18n::tr ("VARIACIONES"));
     for (int i = 0; i < 4; ++i)
-        menu.addItem (i + 1, String::fromUTF8 ("VARIACIÓN ") + String (i + 1));
+        menu.addItem (i + 1, i18n::tr (String::fromUTF8 ("VARIACIÓN")) + " " + String (i + 1));
 
     SafePointer<FlipperEditor> safe (this);
     menu.showMenuAsync (PopupMenu::Options().withTargetComponent (&variationsButton),

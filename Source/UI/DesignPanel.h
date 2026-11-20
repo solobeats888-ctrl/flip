@@ -17,6 +17,8 @@ public:
 
     DesignPanel (FlipperProcessor&, juce::MouseListener& historyListener);
     void setEngine (int engine);
+    int getEngine() const noexcept { return engine; }
+    juce::Rectangle<int> bandRect (const juce::String& title) const;
     void paint (juce::Graphics&) override;
 
 private:

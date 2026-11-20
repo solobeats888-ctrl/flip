@@ -2,6 +2,7 @@
 #include "../DSP/MinimoogEngine.h"
 #include "../DSP/SynthCore.h"
 #include "DesignWidgets.h"
+#include "../Help/I18n.h"
 
 namespace flipper
 {
@@ -34,6 +35,7 @@ VintageKnob& DesignPanel::addKnob (const String& paramId, const String& label, f
     k->setBounds ((int) x - w / 2, (int) y - 62, w, h);
     k->centre = { (float) w / 2, 62.0f };
     k->addMouseListener (&history, false);
+    k->getProperties().set ("help", paramId);
     minimoogPage.addAndMakeVisible (*k);
     attachments.push_back (std::make_unique<AudioProcessorValueTreeState::SliderAttachment> (proc.state, paramId, *k));
     if (auto* prm = proc.state.getParameter (paramId))
@@ -88,6 +90,16 @@ void DesignPanel::buildMinimoog()
     bands.push_back ({ "FILTRO", { 52, 590, 528, 124 } });
     bands.push_back ({ "CONTORNO DEL FILTRO", { 76, 726, 480, 116 } });
     bands.push_back ({ "CONTORNO DE VOLUMEN", { 76, 852, 480, 116 } });
+}
+
+Rectangle<int> DesignPanel::bandRect (const String& title) const
+{
+    if (engine == 0)
+    {
+        for (auto& b : bands) if (b.title == title) return b.area.toNearestInt().expanded (4);
+        return {};
+    }
+    return pages[(size_t) engine]->findBand (title);
 }
 
 void DesignPanel::setEngine (int e)
@@ -203,7 +215,7 @@ void DesignPanel::paint (Graphics& g)
     const String name = u8 (info.character);
     const float nh = theme::fitHeight (name, 210.0f, 28.0f);
     theme::drawPrintedText (g, name, 118.0f + theme::textWidth (name, nh) * 0.5f, 44.0f, nh, 0.0f, idt.accent.brighter (0.25f), theme::black, 0.3f);
-    const String motor = "MOTOR " + String (info.technical);
+    const String motor = i18n::tr ("MOTOR") + " " + String (info.technical);
     theme::drawPrintedText (g, motor, 118.0f + theme::textWidth (motor, 13.0f) * 0.5f, 76.0f, 13.0f, 0.0f, theme::cream, theme::black, 0.1f);
     theme::drawPrintedText (g, u8 ("DISEÑO"), W - 110.0f, 44.0f, 26.0f, 0.0f, theme::mustardHi, theme::black, 0.3f);
     const String sub = u8 (idt.subtitle);
