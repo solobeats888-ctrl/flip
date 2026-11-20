@@ -1,0 +1,14 @@
+FLIPPER — motor de síntesis vintage (Viszeversza)
+================================================
+
+INSTALAR
+1. Doble click en FLIPPER-Instalador-Windows.exe y seguí los pasos.
+   Si Windows muestra "Windows protegió su PC": Más información > Ejecutar de todas formas.
+2. Abrí FL Studio > Options > Manage plugins > Find more plugins.
+3. Cargá FLIPPER como instrumento (fabricante: Viszeversza).
+
+DESINSTALAR
+Configuración > Aplicaciones > FLIPPER (VST3) - Viszeversza > Desinstalar.
+Tus presets quedan en %APPDATA%\Viszeversza\FLIPPER\Presets
+
+Windows 10/11 de 64 bits, VST3.

@@ -1,0 +1,5 @@
+build/
+.DS_Store
+._*
+Reference/captura_*
+Reference/animacion/cuadros_*

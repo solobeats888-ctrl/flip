@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>FLIPPER — Viszeversza</title>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <options customize="allow" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <domains enable_localSystem="true"/>
+    <choices-outline>
+        <line choice="vst3"/>
+        <line choice="au"/>
+    </choices-outline>
+    <choice id="vst3" title="FLIPPER VST3" description="Para FL Studio y la mayoría de los DAW.">
+        <pkg-ref id="com.viszeversza.flipper.vst3"/>
+    </choice>
+    <choice id="au" title="FLIPPER Audio Unit" description="Para Logic, GarageBand y otros DAW que usan AU.">
+        <pkg-ref id="com.viszeversza.flipper.au"/>
+    </choice>
+    <pkg-ref id="com.viszeversza.flipper.vst3" version="0.9.0" onConclusion="none">FLIPPER-VST3.pkg</pkg-ref>
+    <pkg-ref id="com.viszeversza.flipper.au" version="0.9.0" onConclusion="none">FLIPPER-AU.pkg</pkg-ref>
+</installer-gui-script>

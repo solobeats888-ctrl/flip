@@ -1,0 +1,12 @@
+#!/bin/bash
+# Desinstalador de FLIPPER (Viszeversza): borra el plugin VST3 y Audio Unit. Tus presets no se tocan.
+rm -rf "/Library/Audio/Plug-Ins/VST3/FLIPPER.vst3"
+rm -rf "/Library/Audio/Plug-Ins/Components/FLIPPER.component"
+for u in /Users/*; do
+  rm -rf "$u/Library/Audio/Plug-Ins/VST3/FLIPPER.vst3" "$u/Library/Audio/Plug-Ins/Components/FLIPPER.component" 2>/dev/null
+done
+pkgutil --forget com.viszeversza.flipper.vst3 >/dev/null 2>&1
+pkgutil --forget com.viszeversza.flipper.au >/dev/null 2>&1
+pkgutil --forget com.viszeversza.flipper.uninstall >/dev/null 2>&1
+killall -9 AudioComponentRegistrar 2>/dev/null
+exit 0

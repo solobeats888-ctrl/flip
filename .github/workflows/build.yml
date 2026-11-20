@@ -1,0 +1,192 @@
+name: Build FLIPPER (Mac + Windows)
+
+# Compila, arma los instaladores, los prueba (instalar + validar + desinstalar)
+# y publica un Release con todo listo para bajar.
+# Solo corre cuando tocás "Run workflow" en la pestaña Actions (para no gastar minutos).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compilar (Apple Silicon + Intel)
+        run: |
+          cmake -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+          cmake --build build --config Release --target Flipper_VST3 Flipper_AU -- -quiet
+
+      - name: Firmar (ad-hoc)
+        run: |
+          A=build/Flipper_artefacts/Release
+          codesign --force --deep --sign - "$A/VST3/FLIPPER.vst3"
+          codesign --force --deep --sign - "$A/AU/FLIPPER.component"
+          lipo -info "$A/VST3/FLIPPER.vst3/Contents/MacOS/FLIPPER"
+
+      - name: Instalador y desinstalador .pkg
+        run: |
+          set -e
+          V=$(sed -nE 's/^project\(Flipper VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)
+          A=build/Flipper_artefacts/Release
+          mkdir -p out stage/vst3 stage/au
+          ditto "$A/VST3/FLIPPER.vst3" stage/vst3/FLIPPER.vst3
+          ditto "$A/AU/FLIPPER.component" stage/au/FLIPPER.component
+          chmod +x installer/mac/scripts-vst3/* installer/mac/scripts-au/* installer/mac/scripts-uninstall/*
+          for kind in vst3 au; do
+            if [ $kind = vst3 ]; then bundle=FLIPPER.vst3; else bundle=FLIPPER.component; fi
+            printf '%s' '<?xml version="1.0" encoding="UTF-8"?>' \
+              '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+              '<plist version="1.0"><array><dict>' \
+              '<key>BundleHasStrictIdentifier</key><true/>' \
+              '<key>BundleIsRelocatable</key><false/>' \
+              '<key>BundleIsVersionChecked</key><false/>' \
+              '<key>BundleOverwriteAction</key><string>upgrade</string>' \
+              "<key>RootRelativeBundlePath</key><string>$bundle</string>" \
+              '</dict></array></plist>' > comp-$kind.plist
+            plutil -lint comp-$kind.plist
+          done
+          pkgbuild --root stage/vst3 --component-plist comp-vst3.plist --identifier com.viszeversza.flipper.vst3 \
+            --version "$V" --install-location /Library/Audio/Plug-Ins/VST3 --scripts installer/mac/scripts-vst3 FLIPPER-VST3.pkg
+          pkgbuild --root stage/au --component-plist comp-au.plist --identifier com.viszeversza.flipper.au \
+            --version "$V" --install-location /Library/Audio/Plug-Ins/Components --scripts installer/mac/scripts-au FLIPPER-AU.pkg
+          productbuild --distribution installer/mac/distribution.xml --package-path . --resources installer/mac/resources \
+            "out/FLIPPER-Instalador-Mac.pkg"
+          pkgbuild --nopayload --scripts installer/mac/scripts-uninstall --identifier com.viszeversza.flipper.uninstall \
+            --version "$V" FLIPPER-Uninstall.pkg
+          productbuild --distribution installer/mac/distribution-uninstall.xml --package-path . \
+            --resources installer/mac/resources-uninstall "out/Desinstalar-FLIPPER-Mac.pkg"
+          ls -la out
+
+      - name: Probar el instalador
+        run: |
+          sudo installer -pkg "out/FLIPPER-Instalador-Mac.pkg" -target / -verboseR
+          ls -la /Library/Audio/Plug-Ins/VST3/FLIPPER.vst3 /Library/Audio/Plug-Ins/Components/FLIPPER.component
+          echo "INSTALADOR OK"
+
+      - name: Validar Audio Unit (auval)
+        run: |
+          killall -9 AudioComponentRegistrar || true
+          sleep 3
+          auval -strict -v aumu Flpr Vszv
+
+      - name: Validar VST3 (pluginval)
+        continue-on-error: true
+        run: |
+          curl -sL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_macOS.zip
+          unzip -q pluginval.zip
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --skip-gui-tests --validate /Library/Audio/Plug-Ins/VST3/FLIPPER.vst3
+
+      - name: Probar el desinstalador
+        run: |
+          sudo installer -pkg "out/Desinstalar-FLIPPER-Mac.pkg" -target / -verboseR
+          if [ -e /Library/Audio/Plug-Ins/VST3/FLIPPER.vst3 ] || [ -e /Library/Audio/Plug-Ins/Components/FLIPPER.component ]; then
+            echo "El desinstalador no borró el plugin"; exit 1
+          fi
+          echo "DESINSTALADOR OK"
+
+      - name: Subir resultado
+        uses: actions/upload-artifact@v4
+        with:
+          name: FLIPPER-Mac
+          path: out/
+          retention-days: 1
+
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compilar (64 bits)
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64
+          cmake --build build --config Release --target Flipper_VST3
+
+      - name: Instalador .exe (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; }
+          & $iscc "/DSourceDir=$PWD\build\Flipper_artefacts\Release\VST3\FLIPPER.vst3" "/O$PWD\out" installer\windows\FLIPPER.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Get-ChildItem out
+
+      - name: Probar el instalador
+        shell: pwsh
+        run: |
+          Start-Process -Wait -FilePath "out\FLIPPER-Instalador-Windows.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART"
+          if (-not (Test-Path "C:\Program Files\Common Files\VST3\FLIPPER.vst3\Contents\x86_64-win\FLIPPER.vst3")) { exit 1 }
+          Write-Host "INSTALADOR OK"
+
+      - name: Validar VST3 (pluginval)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pv
+          & .\pv\pluginval.exe --strictness-level 5 --skip-gui-tests --validate "C:\Program Files\Common Files\VST3\FLIPPER.vst3"
+
+      - name: Probar el desinstalador
+        shell: pwsh
+        run: |
+          $u = "C:\ProgramData\Viszeversza\FLIPPER\unins000.exe"
+          if (-not (Test-Path $u)) { Write-Host "No encuentro el desinstalador"; exit 1 }
+          Start-Process -Wait -FilePath $u -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART"
+          for ($i = 0; $i -lt 60 -and (Test-Path "C:\Program Files\Common Files\VST3\FLIPPER.vst3"); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path "C:\Program Files\Common Files\VST3\FLIPPER.vst3") { Write-Host "El desinstalador no borró el plugin"; exit 1 }
+          Write-Host "DESINSTALADOR OK"
+
+      - name: Subir resultado
+        uses: actions/upload-artifact@v4
+        with:
+          name: FLIPPER-Windows
+          path: out/
+          retention-days: 1
+
+  release:
+    # Publica los instaladores en la página de Releases del repositorio
+    needs: [mac, windows]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Armar las descargas
+        run: |
+          set -e
+          mkdir -p rel/FLIPPER-Mac rel/FLIPPER-Windows
+          cp dist/FLIPPER-Mac/FLIPPER-Instalador-Mac.pkg dist/FLIPPER-Mac/Desinstalar-FLIPPER-Mac.pkg rel/FLIPPER-Mac/
+          cp "docs/LEEME - Mac.txt" rel/FLIPPER-Mac/
+          cp dist/FLIPPER-Windows/FLIPPER-Instalador-Windows.exe rel/FLIPPER-Windows/
+          cp "docs/LEEME - Windows.txt" rel/FLIPPER-Windows/
+          cd rel
+          zip -r ../FLIPPER-Mac.zip FLIPPER-Mac
+          zip -r ../FLIPPER-Windows.zip FLIPPER-Windows
+          cd ..
+          ls -la *.zip
+
+      - name: Publicar Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          V=$(sed -nE 's/^project\(Flipper VERSION ([0-9.]+).*/\1/p' CMakeLists.txt)
+          TAG="v$V"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "FLIPPER $V" --notes-file docs/notas-release.md --prerelease
+          else
+            gh release create "$TAG" --title "FLIPPER $V" --notes-file docs/notas-release.md --target "$GITHUB_SHA" --prerelease
+          fi
+          gh release upload "$TAG" FLIPPER-Mac.zip FLIPPER-Windows.zip \
+            dist/FLIPPER-Mac/FLIPPER-Instalador-Mac.pkg dist/FLIPPER-Mac/Desinstalar-FLIPPER-Mac.pkg \
+            dist/FLIPPER-Windows/FLIPPER-Instalador-Windows.exe --clobber
+          echo "Release $TAG publicado"

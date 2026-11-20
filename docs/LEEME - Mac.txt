@@ -1,0 +1,14 @@
+FLIPPER — motor de síntesis vintage (Viszeversza)
+================================================
+
+INSTALAR
+1. Doble click en FLIPPER-Instalador-Mac.pkg y seguí los pasos.
+   Si macOS dice que no puede abrirlo: click derecho > Abrir > Abrir.
+2. Abrí FL Studio > Options > Manage plugins > Find more plugins.
+3. Cargá FLIPPER como instrumento (fabricante: Viszeversza).
+
+DESINSTALAR
+Doble click en Desinstalar-FLIPPER-Mac.pkg. Tus presets quedan guardados en
+~/Library/Application Support/Viszeversza/FLIPPER/Presets
+
+Funciona en Mac con Apple Silicon e Intel (macOS 10.13 o más nuevo), VST3 y Audio Unit.

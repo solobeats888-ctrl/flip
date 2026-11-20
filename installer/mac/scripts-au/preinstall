@@ -1,0 +1,3 @@
+#!/bin/bash
+rm -rf "/Library/Audio/Plug-Ins/Components/FLIPPER.component"
+exit 0
