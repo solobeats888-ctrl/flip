@@ -62,6 +62,43 @@ int main (int argc, char** argv)
         return 0;
     }
 
+    if (mode == 5) // demo: un acorde/frase por cada preset de fabrica
+    {
+        const double sr = 48000.0; const int bs = 256;
+        proc.prepareToPlay (sr, bs);
+        proc.presets.rescan();
+        std::vector<const flipper::PresetManager::Preset*> list;
+        for (auto& pr : proc.presets.all()) if (pr.factory) list.push_back (&pr);
+        juce::AudioBuffer<float> all (2, (int) (sr * 2.4 * (double) list.size()) + bs);
+        all.clear();
+        int writePos = 0;
+        for (auto* pr : list)
+        {
+            flipper::SoundGenerator::apply (proc.state, pr->values);
+            const bool arp = proc.state.getParameter ("arp_on")->getValue() > 0.5f;
+            const int notes[] = { 48, 55, 60, 63, 67 };
+            const int blocks = (int) (2.4 * sr / bs);
+            for (int b = 0; b < blocks; ++b)
+            {
+                juce::AudioBuffer<float> buf (2, bs);
+                juce::MidiBuffer m;
+                if (b == 0) for (int i = 0; i < (arp ? 3 : 5); ++i) m.addEvent (juce::MidiMessage::noteOn (1, notes[i] + (i == 0 && ! arp ? -12 : 0), (juce::uint8) 100), i);
+                if (b == (int) (1.5 * sr / bs)) m.addEvent (juce::MidiMessage::allNotesOff (1), 0);
+                proc.processBlock (buf, m);
+                for (int ch = 0; ch < 2; ++ch) all.copyFrom (ch, writePos, buf, ch, 0, bs);
+                writePos += bs;
+            }
+            std::printf ("%s\n", pr->name.toRawUTF8());
+        }
+        juce::File f = juce::File::getCurrentWorkingDirectory().getChildFile (out);
+        f.deleteFile();
+        std::unique_ptr<juce::AudioFormatWriter> w (juce::WavAudioFormat().createWriterFor (new juce::FileOutputStream (f), sr, 2, 16, {}, 0));
+        w->writeFromAudioSampleBuffer (all, 0, writePos);
+        w = nullptr;
+        std::printf ("OK %s (%.1f s)\n", f.getFullPathName().toRawUTF8(), writePos / sr);
+        return 0;
+    }
+
     if (mode == 2) // presets de muestra para ver el explorador
     {
         proc.presets.rescan();
