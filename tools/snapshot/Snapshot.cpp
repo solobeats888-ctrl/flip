@@ -6,6 +6,7 @@
 #include "PluginEditor.h"
 #include "Help/I18n.h"
 #include "Help/Help.h"
+#include "Teach/Lessons.h"
 
 int main (int argc, char** argv)
 {
@@ -16,7 +17,7 @@ int main (int argc, char** argv)
     const int engine       = argc > 3 ? juce::String (argv[3]).getIntValue() : 8;
     const int mode         = argc > 4 ? juce::String (argv[4]).getIntValue() : 0;
     const juce::String off = argc > 5 ? argv[5] : "";
-    const bool tourMode = mode >= 6 && mode <= 8;
+    const bool tourMode = (mode >= 6 && mode <= 8) || mode >= 11;
 
     if (auto* lang = getenv ("FLIPPER_LANG")) flipper::i18n::setLanguage (juce::String (lang) == "en" ? flipper::i18n::Lang::en : flipper::i18n::Lang::es);
     if (mode == 10) // hoja de ayudas al pasar el mouse
@@ -192,6 +193,22 @@ int main (int argc, char** argv)
         return 0;
     }
 
+    if (mode == 11) // MAESTRO: pantalla de pregunta (texto = argumento 5)
+    {
+        editor->openTeacher();
+        editor->getTeacher().setQuery (juce::String::fromUTF8 (off.replace ("_", " ").toRawUTF8()));
+    }
+    if (mode == 12) // MAESTRO: paso de una receta ("receta:paso[:mostrame]")
+    {
+        auto parts = juce::StringArray::fromTokens (off, ":", "");
+        if (auto* l = flipper::teach::find (parts[0]))
+        {
+            auto r = flipper::teach::search (parts.size() > 3 ? parts[3].replace ("_", " ") : juce::String());
+            editor->getTeacher().startLesson (*l, r.modifiers);
+            for (int i = 0; i < parts[1].getIntValue(); ++i) { editor->getTeacher().showMe(); editor->getTeacher().next(); }
+            if (parts[2] == "1") editor->getTeacher().showMe();
+        }
+    }
     if (mode >= 6 && mode <= 8) // un paso de un recorrido guiado (paso = argumento 5)
     {
         editor->setMode ((flipper::UiMode) (mode == 6 ? 0 : (mode == 7 ? 2 : 1)));

@@ -6,6 +6,7 @@
 #include "Core/FactoryPresets.h"
 #include "Help/Help.h"
 #include "Help/I18n.h"
+#include "Teach/Lessons.h"
 
 using namespace flipper;
 using Gen = SoundGenerator;
@@ -404,6 +405,85 @@ int main()
         std::printf ("recorridos: %d pantallas, %d pasos\n", screens.size(), steps);
         CHECK (bad == 0 && steps > 50);
         i18n::setLanguage (i18n::Lang::es);
+    }
+
+    // ------------------------------------------------------------------ MAESTRO
+    {
+        using namespace flipper::teach;
+        // buscador
+        auto top = [] (const char* q) { auto r = search (juce::String::fromUTF8 (q)); return r.lessons.empty() ? juce::String() : juce::String (r.lessons.front()->id); };
+        auto hasMod = [] (const char* q, const char* target) { for (auto* m : search (juce::String::fromUTF8 (q)).modifiers) if (juce::String (m->step.target) == target) return true; return false; };
+        CHECK (top ("bajo 808 sucio") == "mm_808");
+        CHECK (hasMod ("bajo 808 sucio", "character"));
+        CHECK (top ("campana con el dx7") == "dx_bell");
+        CHECK (top ("Piano Eléctrico") == "dx_ep");
+        CHECK (top ("acid bass") == "arp_acid");
+        CHECK (top ("arpegio") == "j8_arp");
+        CHECK (top ("dark pad") .startsWith ("j8_pad") || top ("dark pad").contains ("pad"));
+        CHECK (hasMod ("pad oscuro", "macro_brightness"));
+        CHECK (top ("qué es un filtro") == "basics_filter");
+        CHECK (top ("efecto espacial") == "vcs_laser");
+        CHECK (! search ("xyzzy").understood);
+        CHECK (search ("kroko").lessons.size() >= 3);
+        std::printf ("maestro: %d recetas\n", (int) lessons().size());
+        CHECK (lessons().size() >= 25);
+
+        // cada receta: los pasos apuntan a controles visibles, no arrancan cumplidos, MOSTRAME los cumple y al final suena
+        FlipperProcessor tp;
+        tp.prepareToPlay (48000.0, 256);
+        std::unique_ptr<FlipperEditor> ed (static_cast<FlipperEditor*> (tp.createEditor()));
+        auto& t = ed->getTeacher();
+        int badTarget = 0, preMet = 0, notMet = 0, badText = 0, silent = 0, total = 0;
+        for (auto& l : lessons())
+        {
+            t.startLesson (l, {});
+            for (int i = 0; i < t.stepCount(); ++i)
+            {
+                auto* st = t.currentStep();
+                ++total;
+                if (juce::String::fromUTF8 (st->es).isEmpty() || juce::String::fromUTF8 (st->en).isEmpty()
+                    || juce::String::fromUTF8 (st->titleEs).isEmpty() || juce::String::fromUTF8 (st->titleEn).isEmpty()) ++badText;
+                if (juce::String (st->target).isNotEmpty() && t.currentHole().isEmpty())
+                { ++badTarget; std::printf ("  %s paso %d sin control: %s\n", l.id, i, st->target); }
+                bool real = false;
+                for (auto& c : st->conds)
+                {
+                    if (juce::String (c.param) == "@note") continue;
+                    real = true;
+                    if (tp.state.getParameter (c.param) == nullptr) { ++badTarget; std::printf ("  %s paso %d parametro inexistente %s\n", l.id, i, c.param); }
+                    if (c.set < c.lo || c.set > c.hi) { ++notMet; std::printf ("  %s paso %d: set fuera de rango (%s)\n", l.id, i, c.param); }
+                }
+                if (real && t.satisfied()) { ++preMet; std::printf ("  %s paso %d ya estaba cumplido\n", l.id, i); }
+                if (real) { t.showMe(); if (! t.satisfied()) { ++notMet; std::printf ("  %s paso %d: MOSTRAME no lo cumple\n", l.id, i); } }
+                if (i < t.stepCount() - 1) t.next();
+            }
+            // el sonido terminado suena y no explota
+            juce::AudioBuffer<float> buf (2, 256); juce::MidiBuffer midi;
+            float peak = 0; bool finite = true;
+            for (int b = 0; b < 160; ++b)
+            {
+                midi.clear(); buf.clear();
+                if (b == 0) midi.addEvent (juce::MidiMessage::noteOn (1, l.engine == 5 || l.engine == 6 ? 64 : 45, (juce::uint8) 100), 0);
+                if (b == 120) midi.addEvent (juce::MidiMessage::noteOff (1, l.engine == 5 || l.engine == 6 ? 64 : 45), 0);
+                tp.processBlock (buf, midi);
+                for (int ch = 0; ch < 2; ++ch) for (int s = 0; s < 256; ++s) { const float v = buf.getSample (ch, s); finite &= std::isfinite (v); peak = juce::jmax (peak, std::abs (v)); }
+            }
+            if (! finite || peak < 0.003f || peak > 4.0f) { ++silent; std::printf ("  %s: pico %.4f %s\n", l.id, peak, finite ? "" : "NaN"); }
+            t.close();
+        }
+        std::printf ("maestro: %d pasos revisados\n", total);
+        CHECK (badTarget == 0);
+        CHECK (preMet == 0);
+        CHECK (notMet == 0);
+        CHECK (badText == 0);
+        CHECK (silent == 0);
+
+        // con modificadores: el paso extra aparece y apunta a su perilla
+        auto r = search ("bajo 808 oscuro con espacio");
+        t.startLesson (*r.lessons.front(), r.modifiers);
+        CHECK (t.stepCount() == (int) r.lessons.front()->steps.size() + 2 + 2);
+        t.close();
+        ed = nullptr;
     }
 
     tmp.deleteRecursively();

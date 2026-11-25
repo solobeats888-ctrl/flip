@@ -19,6 +19,7 @@ public:
     void setEngine (int engine);
     int getEngine() const noexcept { return engine; }
     juce::Rectangle<int> bandRect (const juce::String& title) const;
+    void reveal (const juce::String& paramId) { if (engine > 0) pages[(size_t) engine]->reveal (paramId); }
     void paint (juce::Graphics&) override;
 
 private:

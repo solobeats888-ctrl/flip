@@ -8,6 +8,7 @@
 #include "UI/DesignPanel.h"
 #include "Anim/AnimationLayer.h"
 #include "Help/HelpUI.h"
+#include "Teach/TeacherUI.h"
 
 /** Tablero de 1024 x 1536 (espacio de la imagen aprobada); el editor lo escala. */
 class FlipperBoard : public juce::Component
@@ -42,6 +43,10 @@ public:
     juce::Rectangle<int> resolveTarget (const juce::String&);
     void selectEngineForTest (int e) { selectEngine (e); }
     flipper::anim::AnimationLayer& getAnimationLayer() { return animLayer; }
+    flipper::TeacherOverlay& getTeacher() { return teacher; }
+    void openTeacher();
+    /** Zona de un control por su clave de ayuda (id de parametro o "ui:..."), si esta a la vista. */
+    juce::Rectangle<int> findControl (const juce::String& helpKey);
 
 private:
     void timerCallback() override;
@@ -51,6 +56,7 @@ private:
     void showVariations();
     void saveFavorite();
     void refreshEngineStates (bool force);
+    void prepareLesson (const flipper::teach::Lesson&);
 
     FlipperProcessor& proc;
     juce::AudioProcessorValueTreeState& state;
@@ -70,6 +76,7 @@ private:
     flipper::ArcadeButton generateButton, variationsButton, favoriteButton;
     flipper::HelpButton helpButton;
     flipper::TourOverlay tour;
+    flipper::TeacherOverlay teacher;
     std::unique_ptr<flipper::HelpTooltipWindow> tooltipWindow;
 
     using SliderAtt = juce::AudioProcessorValueTreeState::SliderAttachment;

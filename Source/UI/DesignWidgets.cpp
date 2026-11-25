@@ -448,6 +448,18 @@ public:
         select (0);
     }
 
+    void reveal (const String& paramId) override
+    {
+        if (paramId.startsWith ("dx7_op") && ! paramId.startsWith ("dx7_op1_level") && paramId.length() > 7)
+        {
+            // los niveles tambien estan en la vista rapida: no hace falta cambiar de operador
+            static const StringArray quick { "dx7_op1_level", "dx7_op2_level", "dx7_op3_level", "dx7_op4_level", "dx7_op5_level", "dx7_op6_level" };
+            if (quick.contains (paramId)) return;
+            const int o = paramId.substring (6, 7).getIntValue() - 1;
+            if (o >= 0 && o < 6 && o != selected) select (o);
+        }
+    }
+
     void select (int o)
     {
         selected = o;
@@ -573,6 +585,12 @@ public:
         ribbon->addMouseListener (&history, false);
         addAndMakeVisible (*ribbon);
         select (0);
+    }
+
+    void reveal (const String& paramId) override
+    {
+        if (paramId.startsWith ("cs80_l1_") && layer != 0) select (0);
+        if (paramId.startsWith ("cs80_l2_") && layer != 1) select (1);
     }
 
     void select (int L)

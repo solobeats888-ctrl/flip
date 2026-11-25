@@ -85,6 +85,9 @@ public:
     juce::AudioProcessorValueTreeState& state;
     juce::MouseListener& history;
 
+    /** Muestra la pestana donde vive un parametro (operador del DX7, capa del CS-80). */
+    virtual void reveal (const juce::String&) {}
+
     /** Controles creados por una llamada (para mostrar/ocultar grupos, ej. operadores del DX7). */
     std::vector<juce::Component*> lastCreated;
 

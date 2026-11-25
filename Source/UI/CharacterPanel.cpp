@@ -8,6 +8,7 @@ CharacterPanel::CharacterPanel()
     : knob ("knob_character_png", 30.0f, 39.0f)
 {
     addAndMakeVisible (knob);
+    getProperties().set ("help", "ui:teacher");
     knob.onValueChange = [this] { repaint (0, 255, getWidth(), 36); };
     setEngine (8);
 }
@@ -23,6 +24,22 @@ void CharacterPanel::resized()
 {
     knob.setBounds (75 - 46, 353 - 46, 92, 92);
     knob.centre = { 46.0f, 46.0f };
+}
+
+bool CharacterPanel::overPortrait (Point<float> p) const
+{
+    const float dx = (p.x - ovalCentre.x) / rx, dy = (p.y - ovalCentre.y) / ry;
+    return dx * dx + dy * dy <= 1.0f || bubble.expanded (4.0f).contains (p);
+}
+
+void CharacterPanel::mouseMove (const MouseEvent& e)
+{
+    setMouseCursor (overPortrait (e.position) ? MouseCursor::PointingHandCursor : MouseCursor::NormalCursor);
+}
+
+void CharacterPanel::mouseDown (const MouseEvent& e)
+{
+    if (overPortrait (e.position) && onTeach) onTeach();
 }
 
 void CharacterPanel::paint (Graphics& g)
@@ -64,6 +81,22 @@ void CharacterPanel::paint (Graphics& g)
     g.drawRoundedRectangle (plate, 4.0f, 1.3f);
     theme::drawPrintedText (g, name, plate.getCentreX(), plate.getCentreY() + 1.0f,
                             theme::fitHeight (name, plate.getWidth() - 12.0f, 13.0f), 0.0f, theme::ink, theme::mustard, 0.35f, false);
+
+    // globo de dialogo: tocando el retrato, el personaje te ensena (MAESTRO)
+    {
+        Path b;
+        b.addRoundedRectangle (bubble, 10.0f);
+        b.addTriangle (bubble.getX() + 6.0f, bubble.getBottom() - 6.0f, bubble.getX() + 18.0f, bubble.getBottom() - 2.0f,
+                       bubble.getX() - 4.0f, bubble.getBottom() + 9.0f);
+        g.setColour (Colours::black.withAlpha (0.5f));
+        g.fillPath (b, AffineTransform::translation (1.5f, 2.0f));
+        g.setColour (teaching ? theme::mustardHi : theme::cream);
+        g.fillPath (b);
+        g.setColour (theme::ink);
+        g.strokePath (b, PathStrokeType (1.6f));
+        for (int i = 0; i < 3; ++i)
+            g.fillEllipse (bubble.getCentreX() - 12.0f + (float) i * 10.0f, bubble.getCentreY() - 3.0f, 5.5f, 5.5f);
+    }
 
     // CHARACTER: el valor se nombra arriba de la perilla
     const String desc = characterDescriptor ((float) knob.getValue());

@@ -96,6 +96,22 @@ Ayuda e idioma (0.9.1):
 - Idioma: selector ES / EN en LAB; traduce toda la interfaz, la ayuda y los recorridos. La primera
   vez usa el idioma del sistema. Se guarda por usuario (no por proyecto).
 
+MAESTRO (0.9.2):
+- Tocando el retrato del panel PERSONAJE (o el globo de diálogo) se abre el maestro: el personaje
+  pregunta qué sonido querés hacer. Se escribe (castellano o inglés) o se toca un ejemplo.
+- Buscador sin internet: compara las palabras con las de cada receta (Source/Teach/Lessons.cpp).
+  Si nombrás un motor o personaje ("campana con el dx7") prioriza sus recetas. Palabras como
+  oscuro, brillante, sucio, roto, limpio, gordo, fino, largo, corto, suave, golpe, ancho, espacio
+  o movimiento agregan pasos al final con las macros o con CHARACTER.
+- 26 recetas en los 9 motores (3 de primeros pasos: filtro, envolvente, desafinar), 202 pasos.
+- Lección: pone el motor en su sonido base (lo anterior queda en DESHACER), pasa a DISEÑO, ilumina
+  la perilla, explica qué hace y por qué, muestra el valor actual y el buscado, y espera a que el
+  usuario la mueva. Solo la zona iluminada recibe el mouse. MOSTRAME la mueve por él.
+  En DX7 y CS-80 cambia solo de operador o de capa cuando hace falta.
+- Para sumar recetas: agregar una entrada en lessons() con pasos { control, condiciones, textos ES/EN }.
+  tools/tests verifica que cada paso apunte a un control visible, que no arranque cumplido, que
+  MOSTRAME lo cumpla y que el sonido final suene.
+
 Por defecto arranca solo KROKO encendido (antes eran los 9 a la vez y sonaba todo junto).
 
 Todavía NO (no se muestra como si funcionara):

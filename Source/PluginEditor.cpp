@@ -74,6 +74,7 @@ void FlipperBoard::paintContent (Graphics& g)
 FlipperEditor::FlipperEditor (FlipperProcessor& p)
     : AudioProcessorEditor (p), proc (p), state (p.state),
       labPanel (p),
+      teacher (p.state),
       designPanel (p, *this),
       generateButton ("GENERAR", ArcadeButton::Style::lit, { 4.0f, 78.0f, 62.0f, 20.0f }),
       variationsButton ("VARIACIONES", ArcadeButton::Style::dark, { 3.0f, 80.0f, 50.0f, 16.0f }),
@@ -173,6 +174,16 @@ FlipperEditor::FlipperEditor (FlipperProcessor& p)
     board.addChildComponent (tour);
     tour.setBounds (0, 0, boardW, boardH);
     tour.resolve = [this] (const String& t) { return resolveTarget (t); };
+    // MAESTRO: tocando el retrato del panel PERSONAJE
+    board.addChildComponent (teacher);
+    teacher.setBounds (0, 0, boardW, boardH);
+    teacher.resolve       = [this] (const String& t) { return resolveTarget (t); };
+    teacher.prepare       = [this] (const teach::Lesson& l) { prepareLesson (l); };
+    teacher.currentEngine = [this] { return playfield.getSelected(); };
+    teacher.heldNotes     = [this] { return proc.getHeldNotes(); };
+    teacher.onClose       = [this] { characterPanel.teaching = false; characterPanel.repaint(); };
+    characterPanel.onTeach = [this] { openTeacher(); };
+
     tooltipWindow = std::make_unique<HelpTooltipWindow> (this);
     tooltipWindow->setLookAndFeel (&lnf);
     i18n::changes().addChangeListener (this);
@@ -266,7 +277,75 @@ Rectangle<int> FlipperEditor::resolveTarget (const String& t)
     }
     if (t.startsWith ("band:"))
         return designPanel.bandRect (t.substring (5)) + designPanel.getPosition();
+    if (t.isNotEmpty())
+        return findControl (t);
     return {};
+}
+
+Rectangle<int> FlipperEditor::findControl (const String& key)
+{
+    designPanel.reveal (key);
+    std::function<Component* (Component&)> search = [&] (Component& c) -> Component*
+    {
+        for (auto* child : c.getChildren())
+        {
+            if (child == &teacher || child == &tour) continue;
+            if (! child->isVisible()) continue;
+            if (child->getProperties()["help"].toString() == key) return child;
+            if (auto* found = search (*child)) return found;
+        }
+        return nullptr;
+    };
+    if (auto* c = search (board))
+        return board.getLocalArea (c, c->getLocalBounds());
+    return {};
+}
+
+void FlipperEditor::openTeacher()
+{
+    if (tour.isRunning()) tour.close();
+    characterPanel.teaching = true;
+    characterPanel.repaint();
+    teacher.openAsk();
+}
+
+void FlipperEditor::prepareLesson (const teach::Lesson& l)
+{
+    proc.pushHistory();   // lo que tenia queda en DESHACER
+
+    auto set = [this] (const String& id, float real)
+    {
+        if (auto* prm = state.getParameter (id))
+        {
+            prm->beginChangeGesture();
+            prm->setValueNotifyingHost (prm->convertTo0to1 (real));
+            prm->endChangeGesture();
+        }
+    };
+    auto reset = [] (AudioProcessorParameter* prm)
+    {
+        prm->beginChangeGesture();
+        prm->setValueNotifyingHost (prm->getDefaultValue());
+        prm->endChangeGesture();
+    };
+
+    // solo el motor de la receta, en su sonido base; macros al medio; arpegiador de fabrica
+    const String prefix = String (engines()[(size_t) l.engine].id) + "_";
+    for (auto* prm : proc.getParameters())
+        if (auto* rp = dynamic_cast<RangedAudioParameter*> (prm))
+        {
+            const auto id = rp->getParameterID();
+            if ((id.startsWith (prefix) && id != ids::engineOn (l.engine) && id != ids::engineLevel (l.engine)) || id.startsWith ("arp_"))
+                reset (rp);
+        }
+    for (int e = 0; e < numEngines; ++e) set (ids::engineOn (e), e == l.engine ? 1.0f : 0.0f);
+    set (ids::engineLevel (l.engine), 0.8f);
+    for (int m = 0; m < numMacros; ++m) set (ids::macro (m), 0.5f);
+    set (ids::character, 0.35f);
+
+    selectEngine (l.engine);
+    setMode (UiMode::design);
+    refreshEngineStates (true);
 }
 
 void FlipperEditor::startTour()
