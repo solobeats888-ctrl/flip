@@ -1,4 +1,5 @@
 #include "MinimoogEngine.h"
+#include "../Core/Modulation.h"
 
 namespace flipper::dsp
 {
@@ -75,7 +76,7 @@ void MinimoogEngine::addParameters (APVTS::ParameterLayout& layout)
 
 MinimoogEngine::MinimoogEngine (APVTS& state)
 {
-    auto raw = [&state] (const char* name) { return Raw { state.getRawParameterValue (pid (name)) }; };
+    auto raw = [&state] (const char* name) { return Raw { ModMatrix::raw (state, pid (name)) }; };
     const char* ranges[] = { "osc1_range", "osc2_range", "osc3_range" };
     const char* waves[]  = { "osc1_wave", "osc2_wave", "osc3_wave" };
     const char* detune[] = { "", "osc2_detune", "osc3_detune" };

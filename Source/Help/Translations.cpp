@@ -9,6 +9,13 @@ const std::map<juce::String, juce::String>& dictionary()
     {
         auto u8 = [] (const char* s) { return juce::String::fromUTF8 (s); };
         return std::map<juce::String, juce::String> {
+        { u8 ("LIBRE"), u8 ("FREE") },
+        { u8 ("1 COMPÁS"), u8 ("1 BAR") },
+        { u8 ("2 COMPASES"), u8 ("2 BARS") },
+        { u8 ("4 COMPASES"), u8 ("4 BARS") },
+        { u8 ("GENERADO"), u8 ("GENERATED") },
+        { u8 ("NO HAY GENERADO ANTERIOR"), u8 ("NO PREVIOUS GENERATED SOUND") },
+        { u8 ("NO HAY GENERADO SIGUIENTE"), u8 ("NO NEXT GENERATED SOUND") },
         { u8 (" · P = PORTADOR (SUENA) · M = MODULADOR (DA BRILLO)"), u8 (" · C = CARRIER (MAKES SOUND) · M = MODULATOR (ADDS BRIGHTNESS)") },
         { u8 ("1 DCO · SUB · CHORUS"), u8 ("1 DCO · SUB · CHORUS") },
         { u8 ("2 CANALES · AFTERTOUCH · CINTA"), u8 ("2 CHANNELS · AFTERTOUCH · RIBBON") },

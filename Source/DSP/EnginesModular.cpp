@@ -1,5 +1,6 @@
 // ARP 2600 y VCS3
 #include "Engines.h"
+#include "../Core/Modulation.h"
 
 namespace flipper::dsp
 {
@@ -169,7 +170,7 @@ VCS3Engine::VCS3Engine (AudioProcessorValueTreeState& s)
     p.bind (s, "vcs3", vcs3::defs, vcs3::count);
     for (int r = 0; r < pinRows; ++r)
         for (int c = 0; c < pinCols; ++c)
-            pins[(size_t) r][(size_t) c] = s.getRawParameterValue (pinId (r, c));
+            pins[(size_t) r][(size_t) c] = ModMatrix::raw (s, pinId (r, c));
 }
 
 void VCS3Engine::prepare (double rate) { sr = rate; spring.prepare (rate); for (auto& x : v) { x.stage = tIdle; x.trap = 0; x.gateAmp = 0; x.filter.reset(); } }

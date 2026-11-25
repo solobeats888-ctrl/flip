@@ -83,7 +83,7 @@ private:
     const char* keep (const juce::String&);
     int index = 0;
     juce::Rectangle<float> hole, card, prevBtn, exitBtn, showBtn, nextBtn;
-    bool wasOk = false;
+    bool wasOk = false, okAtEntry = false;
     juce::uint32 okSince = 0;
     juce::String lastStatus;
     bool lastOk = false;

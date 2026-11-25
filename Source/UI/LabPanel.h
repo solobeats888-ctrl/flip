@@ -46,6 +46,8 @@ private:
     std::array<std::unique_ptr<LabButton>, 3> modeButtons;
     LabButton useSeed { "USAR SEMILLA" };
     LevelPill mutateAmount;
+    juce::String genStatus() const;
+    LabButton genPrev { "<" }, genNext { ">" };
     LabButton generate { "GENERAR", true }, mutate { "MUTAR" }, surprise { "SORPRESA" },
               undo { "DESHACER" }, redo { "REHACER" };
 

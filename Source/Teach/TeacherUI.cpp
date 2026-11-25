@@ -90,16 +90,15 @@ void TeacherOverlay::startLesson (const Lesson& l, const std::vector<const teach
     texts.clear();
     input.setVisible (false);
 
-    const String name = u8 (engines()[(size_t) l.engine].character);
 
     // presentacion
     steps.push_back ({ "", {},
         keep (u8 (l.titleEs)),
-        keep (teach::greeting (l.engine) + "\n" + u8 (l.blurbEs) + "\n\nPuse a " + name
-              + " en su sonido base para arrancar de cero. Lo que tenías queda en DESHACER (en LAB)."),
+        keep (teach::greeting (l.engine) + "\n" + u8 (l.blurbEs)
+              + u8 ("\n\nTrabajamos sobre tu sonido: no toco los otros motores, las macros ni tus modulaciones. Si un paso ya está como lo pido, lo salteo.")),
         keep (u8 (l.titleEn)),
-        keep (teach::greeting (l.engine) + "\n" + u8 (l.blurbEn) + "\n\nI reset " + name
-              + " to its basic sound so we start from scratch. What you had is in UNDO (in LAB).") });
+        keep (teach::greeting (l.engine) + "\n" + u8 (l.blurbEn)
+              + "\n\nWe work on your sound: I don't touch the other engines, the macros or your modulations. If a step is already done, I skip it.") });
 
     for (auto& s : l.steps) steps.push_back (s);
 
@@ -204,7 +203,7 @@ String TeacherOverlay::statusLine (bool& ok) const
         return title + ":  " + pk ("AHORA ", "NOW ") + text (v) + "   " + pk ("BUSCÁ ", "AIM FOR ") + want + "   " + dir;
     }
     ok = true;
-    return pk ("¡ESO ES!", "THAT'S IT!");
+    return okAtEntry ? pk ("TU SONIDO YA ESTÁ ASÍ: SIGO", "YOUR SOUND IS ALREADY LIKE THIS: MOVING ON") : pk ("¡ESO ES!", "THAT'S IT!");
 }
 
 void TeacherOverlay::timerCallback()
@@ -223,7 +222,7 @@ void TeacherOverlay::timerCallback()
         const auto now = Time::getMillisecondCounter();
         if (! wasOk) { wasOk = true; okSince = now; }
         const bool onlyNote = st->conds.size() == 1 && String (st->conds[0].param) == "@note";
-        if (now - okSince > (onlyNote ? 1400u : 900u) && ! ModifierKeys::currentModifiers.isAnyMouseButtonDown())
+        if (now - okSince > (onlyNote ? 1400u : okAtEntry ? 1300u : 900u) && ! ModifierKeys::currentModifiers.isAnyMouseButtonDown())
             next();
     }
     else wasOk = false;
@@ -474,6 +473,7 @@ void TeacherOverlay::layoutLesson()
     nextBtn = { card.getRight() - 174.0f, by, 150.0f, 36.0f };
 
     lastStatus = {}; lastOk = false;
+    okAtEntry = ! st->conds.empty() && satisfied() && ! (st->conds.size() == 1 && String (st->conds[0].param) == "@note");
 }
 
 void TeacherOverlay::paintLesson (Graphics& g)

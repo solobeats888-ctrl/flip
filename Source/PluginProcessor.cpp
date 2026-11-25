@@ -9,6 +9,7 @@ FlipperProcessor::FlipperProcessor()
     : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       state (*this, &undoManager, "FLIPPER", flipper::createLayout())
 {
+    mod = std::make_unique<flipper::ModMatrix> (state);
     synth = std::make_unique<flipper::dsp::SynthCore> (state);
     presets.setFactory (flipper::buildFactoryPresets (state));
     state.state.setProperty (flipper::ids::selectedEngine, 0, nullptr); // arranca con KROKO (el unico motor encendido)
@@ -20,6 +21,7 @@ FlipperProcessor::FlipperProcessor()
 void FlipperProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     sfx.prepare (sampleRate);
+    mod->prepare (sampleRate);
     synth->prepare (sampleRate, samplesPerBlock);
     noteDown.fill (false);
     noteCount = 0;
@@ -59,10 +61,19 @@ void FlipperProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     }
     heldNotes.store (noteCount, std::memory_order_relaxed);
 
-    // tempo del DAW para el arpegiador
+    // tempo del DAW para el arpegiador y los LFO
+    double bpm = 0.0, ppq = -1.0;
+    bool playing = false;
     if (auto* ph = getPlayHead())
         if (auto pos = ph->getPosition())
-            if (auto bpm = pos->getBpm()) synth->setBpm (*bpm);
+        {
+            if (auto b = pos->getBpm()) { bpm = *b; synth->setBpm (*b); }
+            if (auto q = pos->getPpqPosition()) ppq = *q;
+            playing = pos->getIsPlaying();
+        }
+
+    // valores modulados (MOD A-D, LFO 1-2) para este bloque
+    mod->beginBlock (bpm, playing, ppq);
 
     // los nueve motores (solo procesan los encendidos)
     synth->process (buffer, midi);
@@ -83,6 +94,7 @@ void FlipperProcessor::setStateInformation (const void* data, int size)
         if (xml->hasTagName (state.state.getType()))
         {
             state.replaceState (juce::ValueTree::fromXml (*xml));
+            mod->loadFromState();
             sfx.enabled.store ((bool) state.state.getProperty (flipper::ids::sfxOn, false));
         }
 }
@@ -124,8 +136,33 @@ juce::uint32 FlipperProcessor::generateSound()
 
 void FlipperProcessor::generateSound (juce::uint32 seed)
 {
+    // el sonido generado que estabas usando se guarda con tus cambios antes de pasar al nuevo
+    if (genIndex >= 0 && genIndex < (int) generated.size()) generated[(size_t) genIndex] = Gen::capture (state);
     applyWithHistory (Gen::generate (seed, generatorSettings(), state));
     state.state.setProperty (ids::lastSeed, (juce::int64) seed, nullptr);
+
+    if (genIndex >= 0) generated.resize ((size_t) genIndex + 1);   // lo que habia "adelante" se descarta
+    generated.push_back (Gen::capture (state));
+    if (generated.size() > 50) generated.erase (generated.begin());
+    genIndex = (int) generated.size() - 1;
+}
+
+bool FlipperProcessor::previousGenerated()
+{
+    if (genIndex <= 0 || genIndex >= (int) generated.size()) return false;
+    generated[(size_t) genIndex] = Gen::capture (state);
+    --genIndex;
+    applyWithHistory (generated[(size_t) genIndex]);
+    return true;
+}
+
+bool FlipperProcessor::nextGenerated()
+{
+    if (genIndex < 0 || genIndex >= (int) generated.size() - 1) return false;
+    generated[(size_t) genIndex] = Gen::capture (state);
+    ++genIndex;
+    applyWithHistory (generated[(size_t) genIndex]);
+    return true;
 }
 
 void FlipperProcessor::mutateSound()

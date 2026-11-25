@@ -74,7 +74,7 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
     mutateAmount.setRange (0.05, 1.0);
     mutateAmount.onValueChange = [this] { proc.setMutateAmount ((float) mutateAmount.getValue()); };
 
-    generate.onClick = [this] { proc.generateSound(); status = {}; refreshGenerator(); };
+    generate.onClick = [this] { proc.generateSound(); status = genStatus(); refreshGenerator(); };
     mutate.onClick   = [this] { proc.mutateSound(); status = tr ("MUTADO"); refreshGenerator(); };
     surprise.onClick = [this]
     {
@@ -85,6 +85,8 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
         status = tr ("SORPRESA");
         refreshGenerator();
     };
+    genPrev.onClick = [this] { status = proc.previousGenerated() ? genStatus() : tr ("NO HAY GENERADO ANTERIOR"); refreshGenerator(); };
+    genNext.onClick = [this] { status = proc.nextGenerated() ? genStatus() : tr ("NO HAY GENERADO SIGUIENTE"); refreshGenerator(); };
     undo.onClick = [this] { status = tr (proc.undo() ? "DESHECHO" : "NADA PARA DESHACER"); refreshGenerator(); };
     redo.onClick = [this] { status = tr (proc.redo() ? "REHECHO" : "NADA PARA REHACER"); refreshGenerator(); };
 
@@ -129,6 +131,7 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
     help (nameField, "ui:save"); help (saveCategory, "ui:save"); help (tagsField, "ui:save"); help (saveButton, "ui:save");
     for (auto& b : modeButtons) help (*b, "ui:gen_mode");
     help (styleBox, "ui:style"); help (seedField, "ui:seed"); help (useSeed, "ui:seed"); help (mutateAmount, "ui:mutate_amt");
+    help (genPrev, "ui:gen_prev"); help (genNext, "ui:gen_next");
     help (generate, "ui:generate"); help (mutate, "ui:mutate"); help (surprise, "ui:surprise"); help (undo, "ui:undo"); help (redo, "ui:redo");
     for (auto& t : locks) help (*t, "ui:lock");
     help (animToggle, "ui:anim"); help (sfxToggle, "ui:sfx"); help (langEs, "ui:lang"); help (langEn, "ui:lang");
@@ -136,7 +139,7 @@ LabPanel::LabPanel (FlipperProcessor& p) : proc (p)
     for (Component* c : std::initializer_list<Component*> {
              &search, &categoryFilter, &engineFilter, &characterFilter, &favOnly, &slotA, &slotB, &copyAB,
              &list, &nameField, &saveCategory, &tagsField, &saveButton,
-             &styleBox, &seedField, &useSeed, &mutateAmount, &generate, &mutate, &surprise, &undo, &redo })
+             &styleBox, &seedField, &useSeed, &mutateAmount, &genPrev, &generate, &genNext, &mutate, &surprise, &undo, &redo })
         addAndMakeVisible (c);
 }
 
@@ -202,10 +205,10 @@ void LabPanel::resized()
     useSeed.setBounds (268, 664, 140, 34);
     mutateAmount.setBounds (500, 668, 110, 26);
 
-    const int bw = 112, gap = 7;
-    LabButton* actions[] = { &generate, &mutate, &surprise, &undo, &redo };
-    for (int i = 0; i < 5; ++i)
-        actions[i]->setBounds (20 + i * (bw + gap), 712, i == 4 ? 590 - 4 * (bw + gap) : bw, 44);
+    // < GENERAR > MUTAR SORPRESA DESHACER REHACER  (< y > = sonido generado anterior / siguiente)
+    LabButton* actions[] = { &genPrev, &generate, &genNext, &mutate, &surprise, &undo, &redo };
+    const int widths[] = { 38, 96, 38, 92, 92, 96, 96 };
+    for (int i = 0, x = 20; i < 7; ++i) { actions[i]->setBounds (x, 712, widths[i], 44); x += widths[i] + 7; }
 
     for (int i = 0; i < (int) locks.size(); ++i)
     {
@@ -213,6 +216,11 @@ void LabPanel::resized()
         const int row = i < numEngines ? i / 3 : 3;
         locks[(size_t) i]->setBounds (20 + col * 198, 850 + row * 38, 190, 34);
     }
+}
+
+juce::String LabPanel::genStatus() const
+{
+    return tr ("GENERADO") + " " + String (proc.generatedIndex() + 1) + " / " + String (proc.generatedCount());
 }
 
 //============================================================================== paint

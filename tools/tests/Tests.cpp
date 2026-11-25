@@ -7,6 +7,9 @@
 #include "Help/Help.h"
 #include "Help/I18n.h"
 #include "Teach/Lessons.h"
+#include "Core/Modulation.h"
+#include "Core/FactoryPresets.h"
+#include "Core/SoundGenerator.h"
 
 using namespace flipper;
 using Gen = SoundGenerator;
@@ -407,6 +410,136 @@ int main()
         i18n::setLanguage (i18n::Lang::es);
     }
 
+    // ------------------------------------------------------------------ MOTORES QUE SE PRENDEN CON NOTAS SONANDO
+    {
+        FlipperProcessor mp;
+        mp.prepareToPlay (48000.0, 512);
+        auto setReal = [&mp] (const juce::String& id, float v) { auto* q = mp.state.getParameter (id); q->setValueNotifyingHost (q->convertTo0to1 (v)); };
+        for (int e = 0; e < flipper::numEngines; ++e) setReal (flipper::ids::engineOn (e), e == 0 ? 1.0f : 0.0f);
+        setReal (flipper::ids::macro (5), 0.0f);
+        juce::AudioBuffer<float> b (2, 512);
+        juce::MidiBuffer on; on.addEvent (juce::MidiMessage::noteOn (1, 60, (juce::uint8) 100), 0);
+        mp.processBlock (b, on);
+        for (int i = 0; i < 4; ++i) { juce::MidiBuffer e; b.clear(); mp.processBlock (b, e); }
+        // nota retenida con KROKO; se cambia a PROFETA solo: la nota tiene que seguir sonando, ahora con PROFETA
+        setReal (flipper::ids::engineOn (0), 0.0f);
+        setReal (flipper::ids::engineOn (1), 1.0f);
+        float peak = 0;
+        for (int i = 0; i < 40; ++i) { juce::MidiBuffer e; b.clear(); mp.processBlock (b, e); if (i > 20) peak = juce::jmax (peak, b.getMagnitude (0, 512)); }
+        std::printf ("motor nuevo en nota retenida: pico %.3f\n", peak);
+        CHECK (peak > 0.01f);
+    }
+
+    // ------------------------------------------------------------------ MODULACION
+    {
+        FlipperProcessor mp;
+        mp.prepareToPlay (48000.0, 512);
+        auto& m = *mp.mod;
+        auto* cut = mp.state.getParameter ("minimoog_cutoff");
+        auto* shadow = flipper::ModMatrix::raw (mp.state, "minimoog_cutoff");
+        juce::AudioBuffer<float> b (2, 512); juce::MidiBuffer none;
+        const float base = cut->getValue();
+        CHECK (m.canModulate ("minimoog_cutoff"));
+        CHECK (! m.canModulate ("minimoog_osc1_wave"));   // selector: no se modula
+        CHECK (! m.canModulate ("mod_a"));
+        CHECK (m.setRoute (flipper::ModMatrix::modA, "minimoog_cutoff", 0.3f));
+        CHECK (m.setRoute (flipper::ModMatrix::modA, "macro_brightness", 0.2f));   // una MOD mueve varias perillas
+        auto* modA = mp.state.getParameter ("mod_a");
+        modA->setValueNotifyingHost (1.0f);
+        mp.processBlock (b, none);
+        CHECK (std::abs (cut->convertTo0to1 (shadow->load()) - juce::jmin (1.0f, base + 0.3f)) < 0.01f);
+        CHECK (std::abs (cut->getValue() - base) < 1e-6f);   // la perilla no se mueve, solo el sonido
+        modA->setValueNotifyingHost (0.0f);
+        mp.processBlock (b, none);
+        CHECK (std::abs (cut->convertTo0to1 (shadow->load()) - base) < 0.01f);
+
+        // LFO: el valor se mueve con el tiempo
+        m.clearRoutes();
+        CHECK (m.setRoute (flipper::ModMatrix::lfo1, "minimoog_cutoff", 0.4f));
+        float lo = 1, hi = 0;
+        for (int i = 0; i < 120; ++i) { mp.processBlock (b, none); const float v = cut->convertTo0to1 (shadow->load()); lo = juce::jmin (lo, v); hi = juce::jmax (hi, v); }
+        std::printf ("LFO 1 > corte: %.2f .. %.2f\n", lo, hi);
+        CHECK (hi - lo > 0.4f);
+
+        // se guarda con el proyecto
+        juce::MemoryBlock mb; mp.getStateInformation (mb);
+        FlipperProcessor mp2; mp2.setStateInformation (mb.getData(), (int) mb.getSize());
+        CHECK (std::abs (mp2.mod->depthOf (flipper::ModMatrix::lfo1, "minimoog_cutoff") - 0.4f) < 0.001f);
+
+        // y con los presets / deshacer (capture + apply); los de fabrica limpian las rutas
+        auto snap = flipper::SoundGenerator::capture (mp.state);
+        m.clearRoutes();
+        flipper::SoundGenerator::apply (mp.state, snap);
+        CHECK (m.routes().size() == 1);
+        auto factory = flipper::buildFactoryPresets (mp.state);
+        flipper::SoundGenerator::apply (mp.state, factory.front().values);
+        CHECK (m.routes().empty());
+
+        // suena y no explota con muchas rutas
+        for (int s = 0; s < flipper::ModMatrix::numSources; ++s) m.setRoute (s, "jupiter8_cutoff", 0.5f);
+        mp.state.getParameter (flipper::ids::engineOn (2))->setValueNotifyingHost (1.0f);
+        juce::MidiBuffer on; on.addEvent (juce::MidiMessage::noteOn (1, 57, (juce::uint8) 100), 0);
+        bool finite = true; float pk = 0;
+        for (int i = 0; i < 60; ++i) { b.clear(); mp.processBlock (b, i == 0 ? on : none);
+            for (int c = 0; c < 2; ++c) for (int k = 0; k < 512; ++k) { const float v = b.getSample (c, k); finite &= std::isfinite (v); pk = juce::jmax (pk, std::abs (v)); } }
+        CHECK (finite && pk > 0.01f && pk < 4.0f);
+
+        // editor: arrastrar una fuente a una perilla crea la ruta; FL encuentra el parametro de cada control
+        m.clearRoutes();
+        std::unique_ptr<FlipperEditor> ed (static_cast<FlipperEditor*> (mp.createEditor()));
+        ed->setMode (flipper::UiMode::design);
+        int found = 0, total = 0, noIndex = 0;
+        for (int e = 0; e < flipper::numEngines; ++e)
+        {
+            ed->selectEngineForTest (e);
+            for (auto* prm : mp.getParameters())
+                if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm))
+                {
+                    const auto id = rp->getParameterID();
+                    if (! id.startsWith (juce::String (flipper::engines()[(size_t) e].id) + "_")) continue;
+                    const auto r = ed->findControl (id, true);
+                    if (r.isEmpty()) continue;
+                    ++total;
+                    if (auto* c = ed->getChildComponent (0)->getComponentAt (r.getCentre()))
+                    {
+                        if (ed->getControlParameterIndex (*c) >= 0) ++found; else { ++noIndex; if (noIndex < 6) std::printf ("  sin link: %s\n", id.toRawUTF8()); }
+                    }
+                }
+        }
+        std::printf ("link to controller: %d de %d controles de DISENO\n", found, total);
+        CHECK (total > 300 && noIndex == 0);
+        ed->selectEngineForTest (0);
+        const auto knob = ed->findControl ("minimoog_cutoff", true);
+        CHECK (ed->dropModulation (flipper::ModMatrix::lfo2, knob.getCentre().toFloat()));
+        CHECK (m.depthOf (flipper::ModMatrix::lfo2, "minimoog_cutoff") != 0.0f);
+        const auto macroKnob = ed->findControl ("macro_space", true);
+        CHECK (ed->dropModulation (flipper::ModMatrix::modB, macroKnob.getCentre().toFloat()));
+        ed = nullptr;
+    }
+
+    // ------------------------------------------------------------------ SONIDOS GENERADOS: ANTERIOR / SIGUIENTE
+    {
+        FlipperProcessor gp;
+        gp.generateSound ((juce::uint32) 11);
+        auto* cut = gp.state.getParameter ("minimoog_cutoff");
+        cut->setValueNotifyingHost (0.123f);                       // le cambio algo al primero
+        const auto first = flipper::SoundGenerator::capture (gp.state);
+        gp.generateSound ((juce::uint32) 22);
+        gp.generateSound ((juce::uint32) 33);
+        CHECK (gp.generatedCount() == 3 && gp.generatedIndex() == 2);
+        CHECK (gp.previousGenerated() && gp.previousGenerated());
+        CHECK (! gp.previousGenerated());
+        CHECK (std::abs (cut->getValue() - 0.123f) < 1e-4f);       // volvio con mi cambio
+        int diff = 0;
+        const auto now = flipper::SoundGenerator::capture (gp.state);
+        for (size_t k = 0; k < now.size() && k < first.size(); ++k) diff += std::abs (now[k].second - first[k].second) > 1e-5f ? 1 : 0;
+        CHECK (diff == 0);
+        CHECK (gp.nextGenerated() && gp.nextGenerated() && ! gp.nextGenerated());
+        gp.previousGenerated();
+        gp.generateSound ((juce::uint32) 44);                      // generar desde el medio descarta lo de adelante
+        CHECK (gp.generatedCount() == 3 && gp.generatedIndex() == 2);
+    }
+
     // ------------------------------------------------------------------ MAESTRO
     {
         using namespace flipper::teach;
@@ -434,8 +567,15 @@ int main()
         std::unique_ptr<FlipperEditor> ed (static_cast<FlipperEditor*> (tp.createEditor()));
         auto& t = ed->getTeacher();
         int badTarget = 0, preMet = 0, notMet = 0, badText = 0, silent = 0, total = 0;
+        auto resetAll = [&tp]
+        {
+            for (auto* prm : tp.getParameters()) prm->setValueNotifyingHost (prm->getDefaultValue());
+            tp.mod->clearRoutes();
+        };
+        const bool baseMode = true;
         for (auto& l : lessons())
         {
+            resetAll();   // desde el sonido base: ningun paso tiene que arrancar cumplido
             t.startLesson (l, {});
             for (int i = 0; i < t.stepCount(); ++i)
             {
@@ -453,7 +593,7 @@ int main()
                     if (tp.state.getParameter (c.param) == nullptr) { ++badTarget; std::printf ("  %s paso %d parametro inexistente %s\n", l.id, i, c.param); }
                     if (c.set < c.lo || c.set > c.hi) { ++notMet; std::printf ("  %s paso %d: set fuera de rango (%s)\n", l.id, i, c.param); }
                 }
-                if (real && t.satisfied()) { ++preMet; std::printf ("  %s paso %d ya estaba cumplido\n", l.id, i); }
+                if (real && t.satisfied() && baseMode) { ++preMet; std::printf ("  %s paso %d ya estaba cumplido\n", l.id, i); }
                 if (real) { t.showMe(); if (! t.satisfied()) { ++notMet; std::printf ("  %s paso %d: MOSTRAME no lo cumple\n", l.id, i); } }
                 if (i < t.stepCount() - 1) t.next();
             }
@@ -477,6 +617,27 @@ int main()
         CHECK (notMet == 0);
         CHECK (badText == 0);
         CHECK (silent == 0);
+
+        // el maestro no destruye tu sonido: otros motores, macros, CHARACTER y modulaciones quedan igual
+        {
+            resetAll();
+            tp.generateSound ((juce::uint32) 4242);
+            tp.mod->setRoute (flipper::ModMatrix::lfo1, "jupiter8_cutoff", 0.3f);
+            const auto before = flipper::SoundGenerator::capture (tp.state);
+            t.startLesson (*find ("dx_bell"), {});
+            const auto after = flipper::SoundGenerator::capture (tp.state);
+            int changed = 0;
+            for (size_t k = 0; k < before.size() && k < after.size(); ++k)
+            {
+                const auto& id = before[k].first;
+                if (id == flipper::ids::engineOn (5) || id == flipper::ids::engineLevel (5)) continue;   // puede prender su motor
+                if (std::abs (before[k].second - after[k].second) > 1e-6f) { ++changed; if (changed < 4) std::printf ("  el maestro cambio %s\n", id.toRawUTF8()); }
+            }
+            CHECK (changed == 0 && before.size() == after.size());
+            // y se puede terminar igual desde un sonido cualquiera (los pasos cumplidos se saltean)
+            for (int i = 0; i < t.stepCount() - 1; ++i) { t.showMe(); CHECK (t.currentStep()->conds.empty() || t.satisfied() || juce::String (t.currentStep()->conds[0].param) == "@note"); t.next(); }
+            t.close();
+        }
 
         // con modificadores: el paso extra aparece y apunta a su perilla
         auto r = search ("bajo 808 oscuro con espacio");

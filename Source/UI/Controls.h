@@ -8,6 +8,10 @@ namespace flipper
 class SpriteKnob : public juce::Slider
 {
 public:
+    // click derecho: no mueve el valor (abre el menu del DAW / modulaciones)
+    void mouseDown (const juce::MouseEvent& e) override { if (! e.mods.isPopupMenu()) juce::Slider::mouseDown (e); }
+    void mouseDrag (const juce::MouseEvent& e) override { if (! e.mods.isPopupMenu()) juce::Slider::mouseDrag (e); }
+    void mouseUp (const juce::MouseEvent& e) override   { if (! e.mods.isPopupMenu()) juce::Slider::mouseUp (e); }
     SpriteKnob (const char* spriteResource, float faceRadius, float arcRadius, juce::String label = {});
 
     /** Centro de la perilla en coordenadas locales. */
@@ -33,6 +37,8 @@ class EngineLed : public juce::ToggleButton
 {
 public:
     EngineLed() { setClickingTogglesState (true); setMouseCursor (juce::MouseCursor::PointingHandCursor); }
+    void mouseDown (const juce::MouseEvent& e) override { if (! e.mods.isPopupMenu()) juce::ToggleButton::mouseDown (e); }
+    void mouseUp (const juce::MouseEvent& e) override   { if (! e.mods.isPopupMenu()) juce::ToggleButton::mouseUp (e); }
     void paintButton (juce::Graphics&, bool highlighted, bool down) override;
     float activity = 0.0f; // 0..1, brillo extra cuando el motor esta sonando
 };
@@ -41,6 +47,10 @@ public:
 class LevelPill : public juce::Slider
 {
 public:
+    // click derecho: no mueve el valor (abre el menu del DAW / modulaciones)
+    void mouseDown (const juce::MouseEvent& e) override { if (! e.mods.isPopupMenu()) juce::Slider::mouseDown (e); }
+    void mouseDrag (const juce::MouseEvent& e) override { if (! e.mods.isPopupMenu()) juce::Slider::mouseDrag (e); }
+    void mouseUp (const juce::MouseEvent& e) override   { if (! e.mods.isPopupMenu()) juce::Slider::mouseUp (e); }
     LevelPill();
     void paint (juce::Graphics&) override;
     bool enabledLook = true;
@@ -54,6 +64,11 @@ public:
     ArcadeButton (const juce::String& text, Style, juce::Rectangle<float> textArea);
     void paintButton (juce::Graphics&, bool highlighted, bool down) override;
     void flash();
+
+    /** Click derecho (no dispara el boton). */
+    std::function<void()> onRightClick;
+    void mouseDown (const juce::MouseEvent& e) override { if (e.mods.isPopupMenu()) { if (onRightClick) onRightClick(); return; } juce::Button::mouseDown (e); }
+    void mouseUp (const juce::MouseEvent& e) override   { if (! e.mods.isPopupMenu()) juce::Button::mouseUp (e); }
 
 private:
     void timerCallback() override;

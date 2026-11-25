@@ -1,4 +1,5 @@
 #include "SynthCore.h"
+#include "../Core/Modulation.h"
 #include "MinimoogEngine.h"
 #include "Engines.h"
 
@@ -8,6 +9,7 @@ using namespace juce;
 
 SynthCore::SynthCore (AudioProcessorValueTreeState& state)
 {
+    modMatrix = ModMatrix::forState (state);
     engines[0] = std::make_unique<MinimoogEngine> (state);
     engines[1] = std::make_unique<Prophet5Engine> (state);
     engines[2] = std::make_unique<Jupiter8Engine> (state);
@@ -17,20 +19,20 @@ SynthCore::SynthCore (AudioProcessorValueTreeState& state)
     engines[6] = std::make_unique<M1Engine> (state);
     engines[7] = std::make_unique<Arp2600Engine> (state);
     engines[8] = std::make_unique<VCS3Engine> (state);
-    arpOnRaw = state.getRawParameterValue ("arp_on");
-    arpModeRaw = state.getRawParameterValue ("arp_mode");
-    arpRateRaw = state.getRawParameterValue ("arp_rate");
-    arpOctRaw = state.getRawParameterValue ("arp_oct");
-    arpGateRaw = state.getRawParameterValue ("arp_gate");
+    arpOnRaw = ModMatrix::raw (state, "arp_on");
+    arpModeRaw = ModMatrix::raw (state, "arp_mode");
+    arpRateRaw = ModMatrix::raw (state, "arp_rate");
+    arpOctRaw = ModMatrix::raw (state, "arp_oct");
+    arpGateRaw = ModMatrix::raw (state, "arp_gate");
 
     for (int e = 0; e < numEngines; ++e)
     {
-        onRaw[(size_t) e] = state.getRawParameterValue (ids::engineOn (e));
-        levelRaw[(size_t) e] = state.getRawParameterValue (ids::engineLevel (e));
+        onRaw[(size_t) e] = ModMatrix::raw (state, ids::engineOn (e));
+        levelRaw[(size_t) e] = ModMatrix::raw (state, ids::engineLevel (e));
     }
     for (int m = 0; m < numMacros; ++m)
-        macroRaw[(size_t) m] = state.getRawParameterValue (ids::macro (m));
-    characterRaw = state.getRawParameterValue (ids::character);
+        macroRaw[(size_t) m] = ModMatrix::raw (state, ids::macro (m));
+    characterRaw = ModMatrix::raw (state, ids::character);
 }
 
 SynthCore::~SynthCore() = default;
@@ -68,6 +70,17 @@ void SynthCore::readParameters()
     for (int e = 0; e < numEngines; ++e)
     {
         engineOn[(size_t) e] = onRaw[(size_t) e]->load() > 0.5f;
+
+        // motor que se prende con notas sonando (luz, preset, GENERAR, maestro): entra tambien en
+        // las notas retenidas, asi todas las notas suenan con la misma mezcla de motores
+        if (engineOn[(size_t) e] && ! prevOn[(size_t) e] && engines[(size_t) e])
+            for (int s = 0; s < maxVoices; ++s)
+            {
+                const auto& v = voices[(size_t) s];
+                if (v.note >= 0 && (v.gate || v.sustained))
+                    engines[(size_t) e]->noteOn (s, (float) v.note, v.velocity, (float) v.note);
+            }
+        prevOn[(size_t) e] = engineOn[(size_t) e];
         engineLevel[(size_t) e] = levelRaw[(size_t) e]->load();
         levelSmooth[e].setTargetValue (engineOn[(size_t) e] ? engineLevel[(size_t) e] : 0.0f);
     }
@@ -354,6 +367,8 @@ void SynthCore::process (AudioBuffer<float>& buffer, MidiBuffer& midi)
 
 void SynthCore::renderChunk (float* left, float* right, int n)
 {
+    if (modMatrix != nullptr) modMatrix->advance (n);   // LFOs y valores modulados de este tramo
+
     // LFO global (MOVIMIENTO y rueda de modulacion): ~5.2 Hz
     const float inc = 5.2f / (float) sampleRate;
     for (int i = 0; i < n; ++i)

@@ -36,6 +36,8 @@ float VintageKnob::angleFor (float p) const
 
 void VintageKnob::mouseDown (const MouseEvent& e)
 {
+    if (e.mods.isPopupMenu()) return;   // click derecho: menu del DAW (Link to controller) y modulaciones
+
     const int n = style.positions.size();
     if (n > 1 && e.position.getDistanceFrom (centre) > style.radius + 4.0f)
     {
@@ -117,7 +119,7 @@ void VintageKnob::paintScale (Graphics& g)
         {
             const float a = startA + sweepA * (float) i / (float) (style.scale.size() - 1);
             const auto lp = c.getPointOnCircumference (r + 15.0f, a);
-            theme::drawPrintedText (g, style.scale[i], lp.x, lp.y, 8.0f, 0.0f, theme::cream.withAlpha (0.7f), theme::black, 0.0f, false);
+            theme::drawPrintedText (g, style.scale[i], lp.x, lp.y, 9.0f, 0.0f, theme::cream.withAlpha (0.85f), theme::black, 0.0f, false);
         }
 
     // arco de valor fino en el color del personaje
@@ -283,10 +285,10 @@ void VintageKnob::paintFader (Graphics& g)
         g.drawRoundedRectangle (cap.expanded (2.0f), 3.0f, 1.2f);
     }
 
-    const float lh = theme::fitHeight (label, b.getWidth() - 2.0f, 10.5f);
+    const float lh = theme::fitHeight (label, b.getWidth() - 2.0f, 12.0f);
     theme::drawPrintedText (g, label, cx, 9.0f, lh, 0.0f, theme::cream, theme::black, 0.15f);
     const auto v = getTextFromValue (getValue());
-    theme::drawPrintedText (g, v, cx, b.getHeight() - 8.0f, theme::fitHeight (v, b.getWidth() - 2.0f, 9.5f), 0.0f,
+    theme::drawPrintedText (g, v, cx, b.getHeight() - 8.0f, theme::fitHeight (v, b.getWidth() - 2.0f, 11.5f), 0.0f,
                             (hovering || isMouseButtonDown()) ? theme::mustardHi : style.accent.brighter (0.2f), theme::black, 0.0f, false);
 }
 
@@ -299,13 +301,13 @@ void VintageKnob::paint (Graphics& g)
     else paintRotary (g, angleFor (p));
 
     // rotulo arriba (como en el panel) y valor abajo
-    const float lh = theme::fitHeight (label, (float) getWidth() - 4.0f, 11.0f);
+    const float lh = theme::fitHeight (label, (float) getWidth() - 4.0f, 12.5f);
     theme::drawPrintedText (g, label, centre.x, centre.y - style.radius - (style.positions.size() > 1 ? 32.0f : 26.0f), lh, 0.0f,
                             theme::cream, theme::black, 0.2f);
     if (style.positions.isEmpty() || hovering || isMouseButtonDown())
     {
         const auto v = getTextFromValue (getValue());
-        theme::drawPrintedText (g, v, centre.x, centre.y + style.radius + 24.0f, theme::fitHeight (v, (float) getWidth() - 6.0f, 10.0f), 0.0f,
+        theme::drawPrintedText (g, v, centre.x, centre.y + style.radius + 24.0f, theme::fitHeight (v, (float) getWidth() - 6.0f, 12.0f), 0.0f,
                                 (hovering || isMouseButtonDown()) ? theme::mustardHi : style.accent.brighter (0.3f), theme::black, 0.0f, false);
     }
 }

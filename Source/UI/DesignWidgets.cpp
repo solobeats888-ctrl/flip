@@ -64,6 +64,8 @@ Rectangle<float> ChoiceButtons::buttonRect (int i) const
 
 void ChoiceButtons::mouseDown (const MouseEvent& e)
 {
+    if (e.mods.isPopupMenu()) return;   // click derecho: menu del DAW (Link to controller) y modulaciones
+
     int target = -1;
     if (isSwitch) target = index == 0 ? 1 : 0;
     else for (int i = 0; i < options.size(); ++i) if (buttonRect (i).expanded (1.5f).contains (e.position)) target = i;
@@ -73,7 +75,7 @@ void ChoiceButtons::mouseDown (const MouseEvent& e)
 void ChoiceButtons::paint (Graphics& g)
 {
     const float w = (float) getWidth();
-    theme::drawPrintedText (g, label, w * 0.5f, 9.0f, theme::fitHeight (label, w - 2.0f, 10.5f), 0.0f, theme::cream, theme::black, 0.15f);
+    theme::drawPrintedText (g, label, w * 0.5f, 9.0f, theme::fitHeight (label, w - 2.0f, 12.0f), 0.0f, theme::cream, theme::black, 0.15f);
     const bool membrane = id.look == L::dx7;
     const int n = isSwitch ? 1 : options.size();
     for (int i = 0; i < n; ++i)
@@ -96,7 +98,7 @@ void ChoiceButtons::paint (Graphics& g)
             g.fillEllipse (r.expanded (r.getWidth() * 0.3f, 8.0f));
         }
         const String t = isSwitch ? (on ? "ON" : "OFF") : options[i];
-        theme::drawPrintedText (g, t, r.getCentreX(), r.getCentreY() + 0.5f, theme::fitHeight (t, r.getWidth() - 4.0f, 10.0f), 0.0f,
+        theme::drawPrintedText (g, t, r.getCentreX(), r.getCentreY() + 0.5f, theme::fitHeight (t, r.getWidth() - 4.0f, 11.5f), 0.0f,
                                 on ? Colour (0xff160d06) : theme::cream.withAlpha (0.8f), theme::black, 0.0f, false);
     }
 }
@@ -118,14 +120,14 @@ void LcdSelector::step (int delta)
     attachment.setValueAsCompleteGesture ((float) (target + offset));
 }
 
-void LcdSelector::mouseDown (const MouseEvent& e)            { step (e.x < getWidth() / 2 ? -1 : 1); }
+void LcdSelector::mouseDown (const MouseEvent& e)            { if (! e.mods.isPopupMenu()) step (e.x < getWidth() / 2 ? -1 : 1); }
 void LcdSelector::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w) { step (w.deltaY > 0 ? -1 : 1); }
 
 void LcdSelector::paint (Graphics& g)
 {
     const float w = (float) getWidth(), h = (float) getHeight();
     if (label.isNotEmpty())
-        theme::drawPrintedText (g, label, w * 0.5f, 9.0f, theme::fitHeight (label, w - 2.0f, 10.5f), 0.0f, theme::cream, theme::black, 0.15f);
+        theme::drawPrintedText (g, label, w * 0.5f, 9.0f, theme::fitHeight (label, w - 2.0f, 12.0f), 0.0f, theme::cream, theme::black, 0.15f);
     const float top = label.isNotEmpty() ? 20.0f : 2.0f;
     auto r = Rectangle<float> (2.0f, top, w - 4.0f, jmin (34.0f, h - top - 4.0f));
     g.setColour (Colour (0xff0b0a08)); g.fillRoundedRectangle (r.expanded (2.0f), 4.0f);
@@ -300,10 +302,11 @@ void EnginePage::paint (Graphics& g)
         g.fillRoundedRectangle (b.area, 4.0f);
         g.setColour (id.accent.withAlpha (0.35f));
         g.drawRoundedRectangle (b.area, 4.0f, 1.0f);
-        const float tw = theme::textWidth (b.title, 10.5f);
+        const float th = theme::fitHeight (b.title, b.area.getWidth() - 16.0f, 12.5f);
+        const float tw = theme::textWidth (b.title, th);
         g.setColour (id.panelBottom);
-        g.fillRect (Rectangle<float> (tw + 14, 13).withCentre ({ b.area.getCentreX(), b.area.getY() }));
-        theme::drawPrintedText (g, b.title, b.area.getCentreX(), b.area.getY(), 10.5f, 0.0f, id.accent.brighter (0.3f), theme::black, 0.15f, false);
+        g.fillRect (Rectangle<float> (tw + 14, th + 3.0f).withCentre ({ b.area.getCentreX(), b.area.getY() }));
+        theme::drawPrintedText (g, b.title, b.area.getCentreX(), b.area.getY(), th, 0.0f, id.accent.brighter (0.45f), theme::black, 0.15f, false);
     }
 
     theme::drawPrintedText (g, u8 (id.help), (float) getWidth() * 0.5f, face.getBottom() - 14.0f,
@@ -750,6 +753,7 @@ public:
 
     void mouseDown (const MouseEvent& e) override
     {
+        if (e.mods.isPopupMenu()) return;
         for (int r = 0; r < 8; ++r) for (int c = 0; c < 7; ++c)
             if (cell (r, c).contains (e.position)) { atts[(size_t) (r * 7 + c)]->setValueAsCompleteGesture (on[r][c] ? 0.0f : 1.0f); return; }
     }

@@ -5,6 +5,7 @@
 #include "Core/PresetManager.h"
 #include "Core/PinballSfx.h"
 #include "DSP/SynthCore.h"
+#include "Core/Modulation.h"
 #include <atomic>
 
 class FlipperProcessor : public juce::AudioProcessor
@@ -53,6 +54,13 @@ public:
     flipper::Snapshot variation (juce::uint32 seed) const;
     juce::uint32 lastSeed() const;
 
+    /** Sonidos generados (GENERAR / SORPRESA): ir al anterior o al siguiente sin perder lo que
+        le cambiaste a cada uno. */
+    bool previousGenerated();
+    bool nextGenerated();
+    int generatedCount() const noexcept { return (int) generated.size(); }
+    int generatedIndex() const noexcept { return genIndex; }
+
     void pushHistory();
     bool undo();
     bool redo();
@@ -63,6 +71,7 @@ public:
     void copyABToOther();
 
     flipper::PresetManager presets;
+    std::unique_ptr<flipper::ModMatrix> mod;   // se crea antes que los motores (ellos leen sus valores modulados)
     flipper::PinballSfx sfx;
     flipper::History history;
 
@@ -72,6 +81,8 @@ public:
 private:
     std::unique_ptr<flipper::dsp::SynthCore> synth;
     std::array<flipper::Snapshot, 2> abSlots;
+    std::vector<flipper::Snapshot> generated;   // historial de sonidos generados (con tus cambios)
+    int genIndex = -1;
     int abSlot = 0;
 
     std::array<bool, 128> noteDown {};

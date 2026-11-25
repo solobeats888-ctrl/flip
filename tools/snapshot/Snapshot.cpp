@@ -209,6 +209,34 @@ int main (int argc, char** argv)
             if (parts[2] == "1") editor->getTeacher().showMe();
         }
     }
+    if (mode == 13) // MODULACION: DISENO con rutas y un arrastre en curso (motor = argumento 3)
+    {
+        editor->setMode (flipper::UiMode::design);
+        auto& m = *proc.mod;
+        const auto e = juce::String (flipper::engines()[(size_t) engine].id);
+        int n = 0;
+        for (auto* prm : proc.getParameters())
+            if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (prm))
+                if (rp->getParameterID().startsWith (e + "_") && m.canModulate (rp->getParameterID()) && n < 4)
+                    m.setRoute (n == 0 ? flipper::ModMatrix::lfo1 : n == 1 ? flipper::ModMatrix::modA : n == 2 ? flipper::ModMatrix::lfo2 : flipper::ModMatrix::modC,
+                                rp->getParameterID(), n % 2 ? 0.5f : -0.35f), ++n;
+        m.setRoute (flipper::ModMatrix::modA, "macro_space", 0.4f);
+        m.setRoute (flipper::ModMatrix::lfo1, e + "_cutoff", 0.3f);
+        proc.state.getParameter ("mod_a")->setValueNotifyingHost (0.7f);
+        juce::AudioBuffer<float> b (2, 512); juce::MidiBuffer none;
+        for (int i = 0; i < 20; ++i) proc.processBlock (b, none);
+        editor->getModOverlay().refresh();
+        const auto target = editor->findControl (e + "_cutoff", true);
+        if (! target.isEmpty() && off == "drag")
+            editor->getModOverlay().dragUpdate (flipper::ModMatrix::modB, target.getCentre().toFloat() + juce::Point<float> (6, 4),
+                                                e + "_cutoff", target);
+    }
+    if (mode == 14) // cartel de lectura sobre un control (id = argumento 5), con modulacion si hay
+    {
+        editor->setMode (flipper::UiMode::design);
+        proc.mod->setRoute (flipper::ModMatrix::lfo1, off, 0.3f);
+        editor->showReadoutFor (off);
+    }
     if (mode >= 6 && mode <= 8) // un paso de un recorrido guiado (paso = argumento 5)
     {
         editor->setMode ((flipper::UiMode) (mode == 6 ? 0 : (mode == 7 ? 2 : 1)));

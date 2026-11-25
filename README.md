@@ -96,6 +96,35 @@ Ayuda e idioma (0.9.1):
 - Idioma: selector ES / EN en LAB; traduce toda la interfaz, la ayuda y los recorridos. La primera
   vez usa el idioma del sistema. Se guarda por usuario (no por proyecto).
 
+LEGIBILIDAD (0.9.3):
+- Cartel de lectura: al pasar el mouse (¼ de segundo) o mover cualquier control aparece su nombre y
+  valor en letra grande, a tamaño real de pantalla (no se achica con la ventana). Si está modulado,
+  muestra qué lo modula y el valor que está sonando.
+- Textos chicos (rótulos, valores, títulos de sección, escalas) un poco más grandes y con más contraste,
+  dentro del mismo diseño. La ventana se puede agrandar hasta 1,5 veces el arte original, y si la
+  pantalla es alta abre más grande.
+
+MODULACIÓN y Link to controller (0.9.3):
+- Click derecho en cualquier perilla, fader o selector: menú del DAW (en FL: Link to controller,
+  automatización…). El plugin le dice al DAW qué parámetro hay bajo el mouse en los 319 controles
+  de DISEÑO, las macros, la mezcla y CHARACTER. Si el DAW no da menú, explica cómo linkear en FL.
+- Panel MODULACIÓN (columna izquierda, solo en DISEÑO): MOD A, B, C, D y LFO 1 y 2.
+  Se arrastra la etiqueta de una fuente hasta cualquier perilla continua (de DISEÑO o de JUGAR).
+  Una MOD puede mover muchas perillas: automatizándola o linkeándola se mueven todas juntas.
+  LFO: velocidad en Hz o al tempo del DAW (1/16 … 4 compases, alineado a la grilla), formas seno,
+  triángulo, sierra, cuadrada y azar.
+- Cada perilla modulada muestra un punto del color de la fuente (con un arco de la cantidad) y una
+  barra con el valor modulado. Arrastrar el punto cambia la cantidad (Shift = fino, abajo invierte);
+  doble click o click derecho lo quita. El click derecho de la perilla también permite
+  "Modular con…" y quitar.
+- Las rutas se guardan con el proyecto, en los presets del usuario y en DESHACER. Los presets de
+  fábrica las limpian. Código: Source/Core/Modulation.cpp (motor) y Source/UI/ModUI.cpp (panel).
+- Sonidos generados: < y > en LAB (y click derecho en GENERAR) vuelven al sonido generado anterior o
+  van al siguiente, cada uno con los cambios que le hiciste (hasta 50).
+- Arreglo: al prender un motor (luz, preset, GENERAR, maestro) con notas sonando o retenidas
+  (piano roll, arpegiador, pedal), ahora entra también en esas notas. Antes solo sonaba en las
+  notas nuevas y se mezclaban notas con un motor y notas con otro.
+
 MAESTRO (0.9.2):
 - Tocando el retrato del panel PERSONAJE (o el globo de diálogo) se abre el maestro: el personaje
   pregunta qué sonido querés hacer. Se escribe (castellano o inglés) o se toca un ejemplo.
@@ -104,7 +133,9 @@ MAESTRO (0.9.2):
   oscuro, brillante, sucio, roto, limpio, gordo, fino, largo, corto, suave, golpe, ancho, espacio
   o movimiento agregan pasos al final con las macros o con CHARACTER.
 - 26 recetas en los 9 motores (3 de primeros pasos: filtro, envolvente, desafinar), 202 pasos.
-- Lección: pone el motor en su sonido base (lo anterior queda en DESHACER), pasa a DISEÑO, ilumina
+- Lección (desde 0.9.3): trabaja sobre el sonido que tenés; no apaga otros motores ni vuelve nada a
+  cero (macros, CHARACTER y modulaciones quedan igual). Solo prende el motor de la receta si estaba
+  apagado. Los pasos que tu sonido ya cumple se saltean solos. Pasa a DISEÑO, ilumina
   la perilla, explica qué hace y por qué, muestra el valor actual y el buscado, y espera a que el
   usuario la mueva. Solo la zona iluminada recibe el mouse. MOSTRAME la mueve por él.
   En DX7 y CS-80 cambia solo de operador o de capa cuando hace falta.

@@ -178,10 +178,10 @@ void DesignPanel::paintMinimoog (Graphics& g, Rectangle<float> panel)
         g.setColour (krokoGreen.withAlpha (0.35f));
         g.drawRoundedRectangle (b.area, 4.0f, 1.0f);
         const float ty = b.area.getY();
-        const float tw = theme::textWidth (b.title, 11.0f);
+        const float tw = theme::textWidth (b.title, 12.5f);
         g.setColour (Colour (0xff0d0c0b));
-        g.fillRect (Rectangle<float> (tw + 16, 14).withCentre ({ b.area.getCentreX(), ty }));
-        theme::drawPrintedText (g, b.title, b.area.getCentreX(), ty, 11.0f, 0.0f, krokoGreen.brighter (0.4f), theme::black, 0.15f, false);
+        g.fillRect (Rectangle<float> (tw + 16, 16).withCentre ({ b.area.getCentreX(), ty }));
+        theme::drawPrintedText (g, b.title, b.area.getCentreX(), ty, 12.5f, 0.0f, krokoGreen.brighter (0.5f), theme::black, 0.15f, false);
     }
 
     // numeros de oscilador al costado de cada fila

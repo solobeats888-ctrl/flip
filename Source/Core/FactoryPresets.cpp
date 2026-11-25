@@ -107,6 +107,7 @@ std::vector<PresetManager::Preset> buildFactoryPresets (const AudioProcessorValu
         }
 
         for (auto& [id, val] : v) p.values.push_back ({ id, val });
+        p.values.push_back ({ "@mods", 1.0f });   // los de fabrica no traen modulaciones: al cargarlos se limpian
         p.category = PresetManager::categoryFor (p.values);
         for (int e = 0; e < numEngines; ++e) p.engineOn[(size_t) e] = v[ids::engineOn (e)] > 0.5f;
         p.character = v[ids::character];

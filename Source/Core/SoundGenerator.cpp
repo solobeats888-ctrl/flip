@@ -1,4 +1,5 @@
 #include "SoundGenerator.h"
+#include "Modulation.h"
 
 namespace flipper
 {
@@ -61,6 +62,14 @@ Snapshot SoundGenerator::capture (const AudioProcessorValueTreeState& state)
     for (auto* p : state.processor.getParameters())
         if (auto* rp = dynamic_cast<RangedAudioParameter*> (p))
             s.push_back ({ rp->getParameterID(), rp->getValue() });
+
+    // modulaciones: "@mods" marca que el sonido trae sus rutas (aunque sean cero)
+    if (auto* m = ModMatrix::forState (state))
+    {
+        s.push_back ({ "@mods", 1.0f });
+        for (auto& r : m->routes())
+            s.push_back ({ "@mod|" + String (r.source) + "|" + r.param, r.depth });
+    }
     return s;
 }
 
@@ -277,8 +286,17 @@ Snapshot SoundGenerator::mutate (const AudioProcessorValueTreeState& state, uint
 
 void SoundGenerator::apply (AudioProcessorValueTreeState& state, const Snapshot& snapshot)
 {
+    bool hasMods = false;
+    StringArray mods;
     for (const auto& [id, value] : snapshot)
     {
+        if (id == "@mods") { hasMods = true; continue; }
+        if (id.startsWith ("@mod|"))
+        {
+            auto parts = StringArray::fromTokens (id, "|", "");
+            if (parts.size() == 3) mods.add (parts[1] + ":" + parts[2] + ":" + String (value, 4));
+            continue;
+        }
         if (auto* p = state.getParameter (id))
         {
             if (std::abs (p->getValue() - value) < 1.0e-6f) continue;
@@ -287,6 +305,8 @@ void SoundGenerator::apply (AudioProcessorValueTreeState& state, const Snapshot&
             p->endChangeGesture();
         }
     }
+    if (hasMods)
+        if (auto* m = ModMatrix::forState (state)) m->fromString (mods.joinIntoString (";"));
 }
 
 Snapshot SoundGenerator::withoutLocked (Snapshot s, const std::set<String>& locks)

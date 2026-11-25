@@ -1,6 +1,7 @@
 #include "Parameters.h"
 #include "../DSP/MinimoogEngine.h"
 #include "../DSP/Engines.h"
+#include "Modulation.h"
 
 namespace flipper
 {
@@ -92,6 +93,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
                                                         StringArray { "1/4", "1/8", "1/8T", "1/16", "1/16T", "1/32" }, 3));
     layout.add (std::make_unique<AudioParameterChoice> (ParameterID { "arp_oct", 1 }, "Arp Octaves", StringArray { "1", "2", "3" }, 0));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { "arp_gate", 1 }, "Arp Gate", NormalisableRange<float> (0.05f, 1.0f), 0.6f, percent));
+
+    // modulacion (MOD A-D y LFO 1-2): al final, no cambia el orden anterior
+    ModMatrix::addParameters (layout);
     return layout;
 }
 

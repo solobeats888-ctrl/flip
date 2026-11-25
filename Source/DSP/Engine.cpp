@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "../Core/Modulation.h"
 
 namespace flipper::dsp
 {
@@ -58,7 +59,7 @@ void ParamBank::bind (AudioProcessorValueTreeState& state, const char* prefix, c
     raw.clear();
     for (int i = 0; i < count; ++i)
     {
-        auto* r = state.getRawParameterValue (String (prefix) + "_" + defs[i].id);
+        auto* r = ModMatrix::raw (state, String (prefix) + "_" + defs[i].id);   // valor ya modulado
         jassert (r != nullptr);
         raw.push_back (r);
     }

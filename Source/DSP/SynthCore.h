@@ -3,6 +3,8 @@
 #include "../Core/Parameters.h"
 #include <juce_dsp/juce_dsp.h>
 
+namespace flipper { class ModMatrix; }
+
 namespace flipper::dsp
 {
 /**
@@ -53,12 +55,13 @@ private:
     bool voiceBusy (int slot) const;
 
     std::array<std::unique_ptr<Engine>, numEngines> engines;
+    flipper::ModMatrix* modMatrix = nullptr;
     std::array<Voice, maxVoices> voices;
     std::array<std::atomic<float>*, numEngines> onRaw {}, levelRaw {};
     std::array<std::atomic<float>*, numMacros> macroRaw {};
     std::atomic<float>* characterRaw = nullptr;
 
-    std::array<bool, numEngines> engineOn {};
+    std::array<bool, numEngines> engineOn {}, prevOn {};
     std::array<float, numEngines> engineLevel {};
     std::array<float, numMacros> macro {};
     float character = 0.5f;
