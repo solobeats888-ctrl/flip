@@ -5,13 +5,19 @@ name: Build FLIPPER (Mac + Windows)
 # Solo corre cuando tocás "Run workflow" en la pestaña Actions (para no gastar minutos).
 on:
   workflow_dispatch:
+    inputs:
+      mac_runner:
+        description: "Máquina Mac (si GitHub no tiene Apple Silicon libres, elegí la Intel: el plugin sale universal igual)"
+        type: choice
+        options: [macos-15, macos-15-intel]
+        default: macos-15
 
 permissions:
   contents: write
 
 jobs:
   mac:
-    runs-on: macos-15
+    runs-on: ${{ inputs.mac_runner || 'macos-15' }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
